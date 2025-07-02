@@ -1,3 +1,13 @@
+## 3.1.0
+
+- Updated dependencies:
+  - analyzer to ^7.5.2
+  - build to ^2.5.4
+  - source_gen to ^2.0.0
+  - feature_manager to ^3.1.0
+  - lints to ^6.0.0
+- Internal maintenance and version bump.
+
 ## 3.0.5
 
 - Update a dependency to the latest release

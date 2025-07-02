@@ -1,3 +1,10 @@
+## 3.1.0
+
+- Updated dependencies:
+  - lints to ^6.0.0
+- Internal maintenance and version bump.
+
+
 ## 3.0.5
 
 - Fixed an issue where the Developer Preferences screen did not update after a value change.
