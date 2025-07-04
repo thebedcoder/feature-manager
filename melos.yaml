@@ -1,0 +1,17 @@
+name: bedcode
+
+packages:
+  - apps/**
+  - packages/*
+
+scripts:
+  analyze:
+    exec: dart analyze .
+  run-example:
+    description: "Launch the example Flutter app"
+    run: flutter run
+    scope: example
+    noPub: true
+
+ignore:
+  - "packages/**/example"
