@@ -1,0 +1,19 @@
+name: feature_manager
+description: Feature manager for developer preferences and experiments
+repository: https://github.com/thebedcoder/feature-manager/tree/master/packages/feature_manager
+issue_tracker: https://github.com/thebedcoder/feature-manager/issues
+
+version: 3.1.1
+
+environment:
+  sdk: ^3.6.0
+
+dependencies:
+  shared_preferences: ">=2.1.2 <3.0.0"
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  lints: ^5.1.1
+  flutter_test:
+    sdk: flutter

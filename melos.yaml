@@ -1,0 +1,23 @@
+name: bedcode
+
+packages:
+  - examples/**
+  - packages/**
+
+scripts:
+  analyze:
+    exec: dart analyze .
+  format:
+    exec: dart format .
+  build:
+    exec: dart pub run build_runner build --delete-conflicting-outputs
+  test:
+    description: Run tests in a specific package.
+    run: flutter test
+    exec:
+      concurrency: 1
+    packageFilters:
+      dirExists:
+        - test
+    env:
+      MELOS_TEST: true
