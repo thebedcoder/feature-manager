@@ -30,7 +30,8 @@ class FeatureManager {
   /// Ensure to call `getInstance()` before accessing this property.
   static FeatureManager get instance {
     if (_instance == null) {
-      throw Exception('FeatureManager instance is not initialized. Call getInstance() first.');
+      throw Exception(
+          'FeatureManager instance is not initialized. Call getInstance() first.');
     }
     return _instance!;
   }
@@ -53,7 +54,9 @@ class FeatureManager {
   /// Returns:
   /// - `bool`: `true` if the feature is enabled, `false` otherwise.
   bool isEnabled(Feature<bool> feature) {
-    return _sharedPreferences.getBool(feature.key) ?? feature.defaultValue ?? false;
+    return _sharedPreferences.getBool(feature.key) ??
+        feature.defaultValue ??
+        false;
   }
 
   /// Retrieves the value associated with the given [feature] from the shared preferences.

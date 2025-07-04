@@ -21,10 +21,12 @@ class DeveloperPreferencesScreen extends StatefulWidget {
   final SharedPreferences sharedPreferences;
 
   @override
-  State<DeveloperPreferencesScreen> createState() => _DeveloperPreferencesScreenState();
+  State<DeveloperPreferencesScreen> createState() =>
+      _DeveloperPreferencesScreenState();
 }
 
-class _DeveloperPreferencesScreenState extends State<DeveloperPreferencesScreen> {
+class _DeveloperPreferencesScreenState
+    extends State<DeveloperPreferencesScreen> {
   late FeaturesCubit cubit;
 
   @override

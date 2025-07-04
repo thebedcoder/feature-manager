@@ -19,7 +19,8 @@ void main() {
   });
 
   group('putValue', () {
-    test('when put value for toggle should store in shared preferences', () async {
+    test('when put value for toggle should store in shared preferences',
+        () async {
       // given
       const feature = Feature<bool>(
         key: 'key',
@@ -35,7 +36,8 @@ void main() {
       expect(storedValue, true);
     });
 
-    test('when put value for double should store in shared preferences', () async {
+    test('when put value for double should store in shared preferences',
+        () async {
       // given
       const feature = Feature<double>(
         key: 'key',
@@ -51,7 +53,8 @@ void main() {
       expect(storedValue, 1.1);
     });
 
-    test('when put value for integer should store in shared preferences', () async {
+    test('when put value for integer should store in shared preferences',
+        () async {
       // given
       const feature = Feature<int>(
         key: 'key',
@@ -67,7 +70,8 @@ void main() {
       expect(storedValue, 101);
     });
 
-    test('when put value for text should store in shared preferences', () async {
+    test('when put value for text should store in shared preferences',
+        () async {
       // given
       const feature = Feature<String>(
         key: 'key',

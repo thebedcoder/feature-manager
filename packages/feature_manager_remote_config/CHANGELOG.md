@@ -1,6 +1,6 @@
 ## 3.1.1
 
-- CHORE: Migrated to Melos
+- Maintenance: Transitioned to Melos monorepo tooling
 
 ## 3.0.4
 

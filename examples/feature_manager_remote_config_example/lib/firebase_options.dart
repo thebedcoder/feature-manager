@@ -63,7 +63,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '865462937880',
     projectId: 'remote-config-feature-manager',
     storageBucket: 'remote-config-feature-manager.appspot.com',
-    iosClientId: '865462937880-6ho61o2sq7obsh5nsgum9qgep33df8q1.apps.googleusercontent.com',
+    iosClientId:
+        '865462937880-6ho61o2sq7obsh5nsgum9qgep33df8q1.apps.googleusercontent.com',
     iosBundleId: 'inc.getman.example.example',
   );
 }

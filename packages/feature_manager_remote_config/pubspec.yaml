@@ -3,11 +3,11 @@
 name: remote_config_feature_manager
 description: Firebase Remote Config feature manager for developer preferences, experiments, A/B tests etc.
 version: 3.1.1
-repository: https://github.com/theRealGetman/remote-config-feature-manager
-issue_tracker: https://github.com/theRealGetman/remote-config-feature-manager/issues
+repository: https://github.com/theRealGetman/feature-manager/tree/master/packages/feature_manager_generator
+issue_tracker: https://github.com/theRealGetman/feature-manager/issues
 
 environment:
-  sdk: ^3.0.0
+  sdk: ^3.6.0
 
 dependencies:
   flutter:

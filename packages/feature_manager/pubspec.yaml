@@ -1,13 +1,13 @@
 name: feature_manager
 description: Feature manager for developer preferences and experiments
-repository: https://github.com/theRealGetman/feature-manager/tree/master/feature_manager
+repository: https://github.com/theRealGetman/feature-manager/tree/master/packages/feature_manager
 issue_tracker: https://github.com/theRealGetman/feature-manager/issues
 
 version: 3.1.1
 
 environment:
-  sdk: ">=3.2.4 <4.0.0"
-
+  sdk: ^3.6.0
+  
 dependencies:
   shared_preferences: ">=2.1.2 <3.0.0"
   flutter:

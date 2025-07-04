@@ -10,11 +10,13 @@ import 'firebase_options.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  final SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+  final SharedPreferences sharedPreferences =
+      await SharedPreferences.getInstance();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  final RemoteConfigFeatureManager featureManager = await RemoteConfigFeatureManager.getInstance();
+  final RemoteConfigFeatureManager featureManager =
+      await RemoteConfigFeatureManager.getInstance();
   await featureManager.activate(
     Features.instance().values,
     minimumFetchInterval: const Duration(
@@ -93,7 +95,8 @@ class _MyHomePageState extends State<MyHomePage> {
                 Navigator.of(context)
                     .push(
                   MaterialPageRoute(
-                    builder: (BuildContext context) => DeveloperPreferencesScreen(
+                    builder: (BuildContext context) =>
+                        DeveloperPreferencesScreen(
                       featuresList: Features.instance().values,
                       sharedPreferences: context.read(),
                     ),

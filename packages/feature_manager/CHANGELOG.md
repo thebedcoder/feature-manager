@@ -1,3 +1,8 @@
+## 3.1.1
+
+- Maintenance: Transitioned to Melos monorepo tooling
+- Compatibility: Reverted lint dependency to support Dart 3.6
+
 ## 3.1.0
 
 - Updated dependencies:

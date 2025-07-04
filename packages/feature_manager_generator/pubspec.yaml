@@ -1,13 +1,13 @@
 name: feature_manager_generator
 description: Feature manager generator for developer preferences and experiments
-repository: https://github.com/theRealGetman/feature-manager/tree/master/generator
+repository: https://github.com/theRealGetman/feature-manager/tree/master/packages/feature_manager_generator
 issue_tracker: https://github.com/theRealGetman/feature-manager/issues
 
 version: 3.1.1
 
 environment:
-  sdk: ">=3.2.4 <4.0.0"
-
+  sdk: ^3.6.0
+  
 dependencies:  
   analyzer: ^7.5.2
   build: ^2.4.2

@@ -1,3 +1,8 @@
+## 3.1.1
+
+- Maintenance: Transitioned to Melos monorepo tooling
+- Compatibility: Reverted build and lint dependencies to support Dart 3.6
+
 ## 3.1.0
 
 - Updated dependencies:
@@ -15,6 +20,7 @@
 ## 3.0.4
 
 ### Refactored Feature Type Handling:
+
 - Removed FeatureValueType and replaced it with generic type inference for Feature<T>.
 - The generator now detects the correct feature type (`BooleanFeature`, `TextFeature`, etc.) based on the generic type (`Feature<bool>`, `Feature<String>,` etc.).
 - Added better logging for invalid feature fields.

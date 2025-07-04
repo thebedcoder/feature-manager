@@ -18,7 +18,8 @@ extension FeatureBooleanExt<T> on Feature<T> {
     } else if (isInteger) {
       return FeatureManager.instance.getInt(this as Feature<int>) as T?;
     } else if (isJson) {
-      return FeatureManager.instance.getJson(this as Feature<Map<String, dynamic>>) as T?;
+      return FeatureManager.instance
+          .getJson(this as Feature<Map<String, dynamic>>) as T?;
     } else {
       throw Exception('Unsupported feature type');
     }

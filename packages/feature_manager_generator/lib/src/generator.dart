@@ -26,7 +26,8 @@ class FeatureGenerator extends GeneratorForAnnotation<FeatureManagerInit> {
     final buffer = StringBuffer();
     final featureFieldNames = <String>[];
 
-    buffer.writeln('class _\$${classElement.name} implements ${classElement.name} {');
+    buffer.writeln(
+        'class _\$${classElement.name} implements ${classElement.name} {');
     buffer.writeln();
 
     buffer.writeln('''
@@ -49,17 +50,20 @@ class FeatureGenerator extends GeneratorForAnnotation<FeatureManagerInit> {
     for (final field in classElement.fields) {
       final featureOptions = _getFeatureOptions(field);
       if (featureOptions == null) {
-        log.warning('Field ${field.name} does not have a valid FeatureOptions annotation.');
+        log.warning(
+            'Field ${field.name} does not have a valid FeatureOptions annotation.');
         continue;
       }
 
       final featureType = _getGenericFeatureType(field);
       if (featureType == null) {
-        log.warning('Field ${field.name} does not have a valid generic Feature<T> type.');
+        log.warning(
+            'Field ${field.name} does not have a valid generic Feature<T> type.');
         continue;
       }
 
-      final initializer = _generateFeatureInitializer(field.name, featureType, featureOptions);
+      final initializer =
+          _generateFeatureInitializer(field.name, featureType, featureOptions);
       initializers.add(initializer);
 
       // Collect the feature field names
@@ -81,7 +85,8 @@ class FeatureGenerator extends GeneratorForAnnotation<FeatureManagerInit> {
 
     buffer.writeln('}');
 
-    buffer.writeln('extension ${classElement.name}Ext on ${classElement.name} {');
+    buffer
+        .writeln('extension ${classElement.name}Ext on ${classElement.name} {');
     buffer.writeln('  List<Feature> get values => [');
     for (final fieldName in featureFieldNames) {
       buffer.writeln('        $fieldName,');
@@ -109,7 +114,8 @@ class FeatureGenerator extends GeneratorForAnnotation<FeatureManagerInit> {
 
   String? _getGenericFeatureType(FieldElement field) {
     final featureInterface = field.type.element;
-    if (featureInterface is ClassElement && featureInterface.name == 'Feature') {
+    if (featureInterface is ClassElement &&
+        featureInterface.name == 'Feature') {
       final typeArguments = (field.type as ParameterizedType).typeArguments;
       if (typeArguments.isEmpty) {
         return null;
@@ -135,7 +141,8 @@ class FeatureGenerator extends GeneratorForAnnotation<FeatureManagerInit> {
     const typeChecker = TypeChecker.fromRuntime(FeatureOptions);
     for (final metadata in field.metadata) {
       final elementValue = metadata.computeConstantValue();
-      if (elementValue == null || !typeChecker.isExactlyType(elementValue.type!)) {
+      if (elementValue == null ||
+          !typeChecker.isExactlyType(elementValue.type!)) {
         continue;
       }
 
@@ -144,12 +151,15 @@ class FeatureGenerator extends GeneratorForAnnotation<FeatureManagerInit> {
 
       return FeatureOptions(
         key: elementValue.getField('key')?.toStringValue() ?? '',
-        remoteSourceKey: elementValue.getField('remoteSourceKey')?.toStringValue() ?? '',
+        remoteSourceKey:
+            elementValue.getField('remoteSourceKey')?.toStringValue() ?? '',
         title: elementValue.getField('title')?.toStringValue() ?? '',
-        description: elementValue.getField('description')?.toStringValue() ?? '',
+        description:
+            elementValue.getField('description')?.toStringValue() ?? '',
         defaultValue: defaultValue,
-        type:
-            FeatureType.values[elementValue.getField('type')?.getField('index')?.toIntValue() ?? 0],
+        type: FeatureType.values[
+            elementValue.getField('type')?.getField('index')?.toIntValue() ??
+                0],
       );
     }
     return null;
@@ -179,7 +189,8 @@ class FeatureGenerator extends GeneratorForAnnotation<FeatureManagerInit> {
     return null;
   }
 
-  String _generateFeatureInitializer(String fieldName, String featureType, FeatureOptions options) {
+  String _generateFeatureInitializer(
+      String fieldName, String featureType, FeatureOptions options) {
     return '''
         $fieldName = $featureType(
           key: '${options.key}',

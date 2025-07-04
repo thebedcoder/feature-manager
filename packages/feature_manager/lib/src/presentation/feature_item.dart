@@ -88,7 +88,8 @@ class _FeatureItemState extends State<_FeatureItem> {
   void _showDialog(BuildContext context) {
     Widget textField;
     if (item.isDouble || item.isInteger) {
-      textController.text = item.value == null ? '${item.defaultValue}' : '${item.value}';
+      textController.text =
+          item.value == null ? '${item.defaultValue}' : '${item.value}';
 
       textField = TextField(
         keyboardType: item.isInteger
@@ -100,10 +101,13 @@ class _FeatureItemState extends State<_FeatureItem> {
     } else {
       if (item.isJson) {
         textController.text = jsonEncode(
-          item.value as Map<String, dynamic>? ?? (item.defaultValue as Map<String, dynamic>?) ?? {},
+          item.value as Map<String, dynamic>? ??
+              (item.defaultValue as Map<String, dynamic>?) ??
+              {},
         );
       } else {
-        textController.text = item.value as String? ?? (item.defaultValue as String?) ?? '';
+        textController.text =
+            item.value as String? ?? (item.defaultValue as String?) ?? '';
       }
 
       textField = TextField(
@@ -138,7 +142,10 @@ class _FeatureItemState extends State<_FeatureItem> {
             TextButton(
               child: Text(
                 'Save',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.green),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyLarge
+                    ?.copyWith(color: Colors.green),
               ),
               onPressed: () {
                 final text = textController.text;
@@ -157,7 +164,10 @@ class _FeatureItemState extends State<_FeatureItem> {
             TextButton(
               child: Text(
                 'Cancel',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.red),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyLarge
+                    ?.copyWith(color: Colors.red),
               ),
               onPressed: () {
                 Navigator.pop(context);
