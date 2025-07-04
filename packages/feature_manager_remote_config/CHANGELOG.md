@@ -1,3 +1,7 @@
+## 3.1.1
+
+- CHORE: Migrated to Melos
+
 ## 3.0.4
 
 ### Refactored Feature Type Handling:

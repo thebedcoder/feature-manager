@@ -1,17 +1,21 @@
 name: bedcode
 
 packages:
-  - apps/**
-  - packages/*
+  - examples/**
+  - packages/**
 
 scripts:
   analyze:
     exec: dart analyze .
-  run-example:
-    description: "Launch the example Flutter app"
-    run: flutter run
-    scope: example
-    noPub: true
-
-ignore:
-  - "packages/**/example"
+  format:
+    exec: dart format .
+  test:
+    description: Run tests in a specific package.
+    run: flutter test
+    exec:
+      concurrency: 1
+    packageFilters:
+      dirExists:
+        - test
+    env:
+      MELOS_TEST: true

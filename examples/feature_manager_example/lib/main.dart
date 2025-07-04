@@ -1,24 +1,13 @@
-// ignore: depend_on_referenced_packages
-import 'package:firebase_core/firebase_core.dart';
+import 'package:fm_example/features.dart';
+import 'package:feature_manager/feature_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:remote_config_feature_manager/remote_config_feature_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-import 'features.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  final SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
-  await Firebase.initializeApp();
-  final RemoteConfigFeatureManager featureManager = await RemoteConfigFeatureManager.getInstance();
-  await featureManager.activate(
-    Features.instance().values,
-    minimumFetchInterval: const Duration(
-      minutes: 5,
-    ),
-  );
+  final sharedPreferences = await SharedPreferences.getInstance();
+  final featureManager = await FeatureManager.getInstance();
 
   runApp(
     MultiProvider(
@@ -60,8 +49,7 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
-    final feature = context.read<RemoteConfigFeatureManager>().booleanFeature;
-    final bool isEnabled = feature.isEnabled;
+    final isEnabled = context.read<FeatureManager>().booleanFeature.isEnabled;
 
     return Scaffold(
       appBar: AppBar(
@@ -73,7 +61,7 @@ class _MyHomePageState extends State<MyHomePage> {
           children: [
             Text.rich(
               TextSpan(
-                text: 'Feature toggle ${feature.remoteSourceKey} >>> ',
+                text: 'Feature toggle ',
                 children: <InlineSpan>[
                   TextSpan(
                     text: isEnabled ? 'enabled' : 'disabled',
@@ -84,15 +72,15 @@ class _MyHomePageState extends State<MyHomePage> {
                 ],
               ),
             ),
-            const SizedBox(height: 16.0),
+            const SizedBox(height: 16),
             ElevatedButton(
-              child: const Text('Open developer preferences'),
+              child: const Text('Open Feature Manager'),
               onPressed: () {
                 Navigator.of(context)
                     .push(
-                  MaterialPageRoute(
-                    builder: (BuildContext context) => DeveloperPreferencesScreen(
-                      featuresList: Features.instance().values,
+                  MaterialPageRoute<void>(
+                    builder: (context) => DeveloperPreferencesScreen(
+                      featuresList: AppFeatures.instance().values,
                       sharedPreferences: context.read(),
                     ),
                   ),

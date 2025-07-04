@@ -1,3 +1,5 @@
+void main() {}
+
 // import 'package:bloc_test/bloc_test.dart';
 // import 'package:feature_manager/feature_manager.dart';
 // import 'package:feature_manager/src/bloc/features_cubit.dart';
