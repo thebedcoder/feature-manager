@@ -96,7 +96,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     .push(
                   MaterialPageRoute(
                     builder: (BuildContext context) =>
-                        DeveloperPreferencesScreen(
+                        FeatureManagerScreen(
                       featuresList: Features.instance().values,
                       sharedPreferences: context.read(),
                     ),
