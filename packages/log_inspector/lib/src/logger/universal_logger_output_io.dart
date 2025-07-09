@@ -12,8 +12,9 @@ class UniversalLoggerOutput extends LogOutput {
     this.shouldLog = true,
     this.localStorageKey = 'log_inspector_logs',
     this.logFileName = 'app_logs',
-    this.onShareFile,
-  });
+  }) {
+    _instance ??= this;
+  }
 
   static UniversalLoggerOutput? _instance;
   static UniversalLoggerOutput get instance {
@@ -26,20 +27,9 @@ class UniversalLoggerOutput extends LogOutput {
     return _instance!;
   }
 
-  /// Get the instance if registered, otherwise return null
-  static UniversalLoggerOutput? get instanceOrNull => _instance;
-
-  /// Register this instance as the global instance
-  void register() {
-    _instance = this;
-    debugPrint('UniversalLoggerOutput registered as global instance');
-    debugPrint('Share callback: ${onShareFile != null ? 'provided' : 'null'}');
-  }
-
   final bool shouldLog;
   final String localStorageKey;
   final String logFileName;
-  final Future<void> Function(String content, String fileName)? onShareFile;
 
   // Mobile/Desktop-specific storage
   List<String> _mobileLogs = [];
@@ -164,7 +154,6 @@ class UniversalLoggerOutput extends LogOutput {
           'Storage: ${_logFile != null ? 'File-based (${_logFile!.path})' : 'In-memory'}\n'
           'Note: Logs are ${_logFile != null ? 'persistently stored in files' : 'stored in memory only'}\n'
           'File exists: ${_logFile != null ? await _logFile!.exists() : 'N/A'}';
-      debugPrint('Returning status message: $statusMessage');
       return statusMessage;
     }
 
@@ -217,60 +206,13 @@ class UniversalLoggerOutput extends LogOutput {
 
   /// Download logs (prepare for sharing on mobile/desktop)
   Future<void> downloadLogs() async {
-    String content = '';
-
-    // Try to get content from file first
     if (_logFile != null && await _logFile!.exists()) {
-      try {
-        content = await _logFile!.readAsString();
-      } catch (e) {
-        debugPrint('Error reading log file for download: $e');
-        content = _mobileLogs.join('\n');
-      }
-    } else {
-      content = _mobileLogs.join('\n');
-    }
-
-    if (content.isEmpty) {
-      debugPrint('No logs to share');
-      return;
-    }
-
-    final fileName = '${logFileName}_${DateTime.now().millisecondsSinceEpoch}.txt';
-
-    if (_logFile != null) {
       SharePlus.instance.share(
         ShareParams(
           files: [XFile(_logFile!.path)],
         ),
       );
     }
-
-    // Use custom share callback if provided
-    if (onShareFile != null && _logFile != null) {
-      try {
-        // await onShareFile!(content, _logFile!.path);
-        return;
-      } catch (e) {
-        debugPrint('Error using custom share callback: $e');
-        // Fall through to default behavior
-      }
-    }
-
-    // Default behavior - print to console and show file path
-    debugPrint('=== LOG CONTENT FOR SHARING ===');
-    debugPrint('Log file: ${_logFile?.path ?? 'In-memory'}');
-    debugPrint('Content length: ${content.length} characters');
-    debugPrint(
-        'Log entries: ${content.split('\n').where((line) => line.trim().isNotEmpty).length}');
-    debugPrint('Suggested filename: $fileName');
-    debugPrint('');
-    debugPrint(content);
-    debugPrint('=== END LOG CONTENT ===');
-
-    // TODO: If no callback provided, could save to a temporary file for sharing
-    debugPrint(
-        'TODO: To enable file sharing, provide an onShareFile callback or add share_plus package');
   }
 
   /// Check if logs exist

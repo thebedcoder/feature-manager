@@ -21,14 +21,8 @@ class LoggerServiceImpl implements LoggerService {
   LoggerServiceImpl({UniversalLoggerOutput? loggerOutput}) {
     if (loggerOutput != null) {
       _loggerOutput = loggerOutput;
-    } else if (UniversalLoggerOutput.instanceOrNull != null) {
-      _loggerOutput = UniversalLoggerOutput.instance;
     } else {
-      throw StateError(
-        'No UniversalLoggerOutput instance available. Either:\n'
-        '1. Pass one explicitly: LoggerServiceImpl(loggerOutput: myOutput)\n'
-        '2. Register a global instance: myOutput.register()'
-      );
+      _loggerOutput = UniversalLoggerOutput.instance;
     }
   }
 

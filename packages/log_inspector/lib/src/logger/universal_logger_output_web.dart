@@ -9,8 +9,9 @@ class UniversalLoggerOutput extends LogOutput {
     this.shouldLog = true,
     this.localStorageKey = 'log_inspector_logs',
     this.logFileName = 'app_logs',
-    this.onShareFile,
-  });
+  }) {
+    _instance ??= this;
+  }
 
   static UniversalLoggerOutput? _instance;
   static UniversalLoggerOutput get instance {
@@ -23,20 +24,9 @@ class UniversalLoggerOutput extends LogOutput {
     return _instance!;
   }
 
-  /// Get the instance if registered, otherwise return null
-  static UniversalLoggerOutput? get instanceOrNull => _instance;
-
-  /// Register this instance as the global instance
-  void register() {
-    _instance = this;
-    debugPrint('UniversalLoggerOutput registered as global instance');
-    debugPrint('Share callback: ${onShareFile != null ? 'provided' : 'null'}');
-  }
-
   final bool shouldLog;
   final String localStorageKey;
   final String logFileName;
-  final Future<void> Function(String content, String fileName)? onShareFile;
 
   // Web-specific storage
   List<String> _webLogs = [];

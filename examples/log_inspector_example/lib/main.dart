@@ -40,18 +40,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _initializeLogger() {
     // Create logger with UniversalLoggerOutput that works on all platforms
-    final logOutput = UniversalLoggerOutput(
-      shouldLog: true,
-      localStorageKey: 'log_inspector_logs',
-      onShareFile: LogSharingUtils.clipboardCallback, // Use clipboard sharing
-      // Alternative options:
-      // onShareFile: LogSharingUtils.documentsCallback, // Save to documents
-      // onShareFile: LogSharingUtils.tempFileCallback,  // Save to temp file
-      // onShareFile: _customShareFile,  // Custom implementation
-    );
-    
-    // Register as global instance so LoggerService can access the same instance
-    logOutput.register();
+    final logOutput = UniversalLoggerOutput();
 
     _logger = Logger(
       output: logOutput,
