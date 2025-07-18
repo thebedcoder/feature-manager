@@ -79,7 +79,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 Navigator.of(context)
                     .push(
                   MaterialPageRoute<void>(
-                    builder: (context) => DeveloperPreferencesScreen(
+                    builder: (context) => FeatureManagerScreen(
                       featuresList: AppFeatures.instance().values,
                       sharedPreferences: context.read(),
                     ),

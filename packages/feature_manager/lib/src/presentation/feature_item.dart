@@ -1,4 +1,4 @@
-part of 'features_screen.dart';
+part of 'feature_manager_screen.dart';
 
 class _FeatureItem extends StatefulWidget {
   const _FeatureItem(

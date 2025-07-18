@@ -1,0 +1,32 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run Feature Manager Example",
+            "type": "dart",
+            "request": "launch",
+            "program": "${workspaceFolder}/examples/feature_manager_example/lib/main.dart",
+            "cwd": "${workspaceFolder}/examples/feature_manager_example",
+            "preLaunchTask": "melos: bootstrap",
+            "args": []
+        },
+        {
+            "name": "Run Feature Manager Remote Config Example",
+            "type": "dart",
+            "request": "launch",
+            "program": "${workspaceFolder}/examples/feature_manager_remote_config_example/lib/main.dart",
+            "cwd": "${workspaceFolder}/examples/feature_manager_remote_config_example",
+            "preLaunchTask": "melos: bootstrap",
+            "args": []
+        },
+        {
+            "name": "Run Log Inspector Example",
+            "type": "dart",
+            "request": "launch",
+            "program": "${workspaceFolder}/examples/log_inspector_example/lib/main.dart",
+            "cwd": "${workspaceFolder}/examples/log_inspector_example",
+            "preLaunchTask": "melos: bootstrap",
+            "args": []
+        }
+    ]
+}
