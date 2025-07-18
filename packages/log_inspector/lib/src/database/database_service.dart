@@ -170,34 +170,6 @@ class DatabaseService implements DatabaseInterface {
     if (kDebugMode) debugPrint('Cleared all records from $storeName');
   }
 
-  /// Query records with a filter function
-  @override
-  Future<List<Map<String, dynamic>>> query(
-    String storeName,
-    bool Function(Map<String, dynamic>) filter,
-  ) async {
-    await _ensureInitialized();
-
-    try {
-      final transaction = _database!.transaction(storeName, 'readonly');
-      final store = transaction.objectStore(storeName);
-      final records = <Map<String, dynamic>>[];
-
-      await for (final cursor in store.openCursor()) {
-        final value = cursor.value;
-        if (value is Map<String, dynamic> && filter(value)) {
-          records.add(value);
-        }
-        cursor.next();
-      }
-
-      return records;
-    } catch (e) {
-      debugPrint('Error querying records from $storeName: $e');
-      return [];
-    }
-  }
-
   /// Efficiently query records by sessionId using index
   Future<List<Map<String, dynamic>>> queryBySessionId(String sessionId) async {
     await _ensureInitialized();
@@ -270,11 +242,11 @@ class DatabaseService implements DatabaseInterface {
         (store) async {
           final index = store.index('sessionId');
           final records = <Map<String, dynamic>>[];
-          
+
           // Get first cursor with key range
           final cursorStream = index.openCursor(range: keyRange);
           final cursor = await cursorStream.first;
-          
+
           // Skip to the desired page using cursor.advance() - much more efficient!
           if (offset > 0) {
             cursor.advance(offset);
@@ -290,12 +262,12 @@ class DatabaseService implements DatabaseInterface {
             } else {
               break; // No more records
             }
-            
+
             if (collected < pageSize) {
               cursor.next();
             }
           }
-          
+
           return records;
         },
       );

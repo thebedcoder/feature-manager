@@ -64,35 +64,22 @@ class MockDatabaseService implements DatabaseInterface {
   }
 
   @override
-  Future<List<Map<String, dynamic>>> query(
-    String storeName, 
-    bool Function(Map<String, dynamic>) filter,
-  ) async {
-    _ensureStoreExists(storeName);
-    return _stores[storeName]!.values.where(filter).toList();
-  }
-
-  @override
-  Future<List<Map<String, dynamic>>> getPage(
-    String storeName, 
-    int page, 
-    int pageSize, 
-    {bool Function(Map<String, dynamic>)? filter}
-  ) async {
+  Future<List<Map<String, dynamic>>> getPage(String storeName, int page, int pageSize,
+      {bool Function(Map<String, dynamic>)? filter}) async {
     _ensureStoreExists(storeName);
     var records = _stores[storeName]!.values.toList();
-    
+
     if (filter != null) {
       records = records.where(filter).toList();
     }
-    
+
     final startIndex = page * pageSize;
     final endIndex = startIndex + pageSize;
-    
+
     if (startIndex >= records.length) {
       return [];
     }
-    
+
     return records.sublist(startIndex, endIndex.clamp(0, records.length));
   }
 
@@ -100,11 +87,11 @@ class MockDatabaseService implements DatabaseInterface {
   Future<int> count(String storeName, {bool Function(Map<String, dynamic>)? filter}) async {
     _ensureStoreExists(storeName);
     var records = _stores[storeName]!.values.toList();
-    
+
     if (filter != null) {
       records = records.where(filter).toList();
     }
-    
+
     return records.length;
   }
 }

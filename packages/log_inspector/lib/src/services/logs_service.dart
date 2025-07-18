@@ -41,8 +41,8 @@ class LogsService {
   /// Get paginated logs for a specific session
   Future<List<String>> getLogsPageForSession(String sessionId, int page, int pageSize) async {
     final records = await (_database as DatabaseService).getPageBySessionId(
-      sessionId, 
-      page, 
+      sessionId,
+      page,
       pageSize,
     );
 
@@ -64,10 +64,7 @@ class LogsService {
   /// Delete all logs for a specific session
   Future<void> deleteLogsForSession(String sessionId) async {
     // Get all logs for the session first
-    final records = await _database.query(
-      DatabaseService.logsStoreName, 
-      (record) => record['sessionId'] == sessionId,
-    );
+    final records = await (_database as DatabaseService).queryBySessionId(sessionId);
 
     // Delete each log record
     for (final record in records) {
@@ -85,54 +82,6 @@ class LogsService {
   /// Get total logs count across all sessions
   Future<int> getTotalLogsCount() async {
     return await _database.count(DatabaseService.logsStoreName);
-  }
-
-  /// Get logs by timestamp range for a specific session
-  Future<List<String>> getLogsForSessionByTimeRange(
-    String sessionId, 
-    DateTime startTime, 
-    DateTime endTime,
-  ) async {
-    final startTimestamp = startTime.millisecondsSinceEpoch;
-    final endTimestamp = endTime.millisecondsSinceEpoch;
-
-    final records = await _database.query(
-      DatabaseService.logsStoreName, 
-      (record) => 
-        record['sessionId'] == sessionId &&
-        record['timestamp'] != null &&
-        record['timestamp'] >= startTimestamp &&
-        record['timestamp'] <= endTimestamp,
-    );
-
-    final logs = <String>[];
-    for (final record in records) {
-      if (record['log'] != null) {
-        logs.add(record['log'].toString());
-      }
-    }
-
-    return logs;
-  }
-
-  /// Search logs by content for a specific session
-  Future<List<String>> searchLogsForSession(String sessionId, String searchTerm) async {
-    final records = await _database.query(
-      DatabaseService.logsStoreName, 
-      (record) => 
-        record['sessionId'] == sessionId &&
-        record['log'] != null &&
-        record['log'].toString().toLowerCase().contains(searchTerm.toLowerCase()),
-    );
-
-    final logs = <String>[];
-    for (final record in records) {
-      if (record['log'] != null) {
-        logs.add(record['log'].toString());
-      }
-    }
-
-    return logs;
   }
 
   /// Dispose the singleton instance
