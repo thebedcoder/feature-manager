@@ -39,7 +39,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _initializeLogger() {
-    // Create logger with UniversalLoggerOutput that works on all platforms
+    // Create logger with UniversalLogger that works on all platforms
     final logOutput = UniversalLoggerOutput();
 
     _logger = Logger(
@@ -97,6 +97,21 @@ class _MyHomePageState extends State<MyHomePage> {
     super.dispose();
   }
 
+  void _addHugeLogRecord() {
+    final hugeMessage = StringBuffer();
+    for (int i = 0; i < 10000; i++) {
+      hugeMessage.write('This is a huge log record line $i. ');
+    }
+    _logger.i(hugeMessage.toString());
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Added a huge log record'),
+        duration: Duration(milliseconds: 1500),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -113,6 +128,11 @@ class _MyHomePageState extends State<MyHomePage> {
               child: const Text('Add Record to Log'),
             ),
             ElevatedButton(
+              onPressed: _addHugeLogRecord,
+              child: const Text('Add Huge Record to Log'),
+            ),
+            const Divider(),
+            ElevatedButton.icon(
               onPressed: () {
                 Navigator.of(context).push(
                   MaterialPageRoute<void>(
@@ -120,7 +140,19 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                 );
               },
-              child: const Text('Open Log Inspector'),
+              icon: const Icon(Icons.folder),
+              label: const Text('Open Session Inspector'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (context) => DetailedLogsScreen(),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.description),
+              label: const Text('Open Current Session Logs'),
             ),
           ],
         ),

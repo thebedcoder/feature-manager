@@ -1,6 +1,8 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:log_inspector/src/logger/logger_service.dart';
+import 'package:log_inspector/src/logger_service/logger_service.dart';
+import 'package:log_inspector/src/logger_service/logger_service_impl.dart';
+import 'package:log_inspector/src/models/session.dart';
+import 'package:log_inspector/src/presentation/detailed_logs_screen.dart';
 
 class LogInspectorScreen extends StatefulWidget {
   const LogInspectorScreen({super.key});
@@ -11,82 +13,96 @@ class LogInspectorScreen extends StatefulWidget {
 
 class _LogInspectorScreenState extends State<LogInspectorScreen> {
   bool _isLoading = false;
-  String? _error;
-  String _logsContent = '';
-  int _logFilesCount = 0;
-  int _logsSizeBytes = 0;
   late LoggerService _loggerService;
+
+  int _currentPage = 0;
+  int _totalPages = 0;
+
+  List<LogSession> _allLoadedSessions = [];
+  bool _isLoadingMore = false;
+
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _loggerService = LoggerServiceImpl();
-    _loadLogsInfo();
+    _loadSessionsInfo();
   }
 
-  Future<void> _loadLogsInfo() async {
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadSessionsInfo() async {
     setState(() {
       _isLoading = true;
-      _error = null;
     });
 
     try {
-      final filesCount = await _loggerService.getLogFilesCount();
-      final sizeBytes = await _loggerService.getLogsSizeInBytes();
-      final content = await _loggerService.readLogs();
+      await _loadPaginatedData();
 
       setState(() {
-        _logFilesCount = filesCount;
-        _logsSizeBytes = sizeBytes;
-        _logsContent = content;
         _isLoading = false;
       });
     } catch (e) {
       setState(() {
-        _error = e.toString();
         _isLoading = false;
       });
     }
   }
 
-  Future<void> _downloadLogs() async {
-    if (_isLoading) {
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-
+  Future<void> _loadPaginatedData({bool append = false}) async {
     try {
-      await _loggerService.downloadLogs();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Logs download triggered.')),
-        );
-      }
+      // Get paginated sessions using the logger service
+      final paginatedResult = await _loggerService.getSessionsPaginated(_currentPage);
+
+      setState(() {
+        if (append) {
+          // Append new sessions to existing list for infinite scroll
+          _allLoadedSessions.addAll(paginatedResult.sessions);
+        } else {
+          // Reset list for initial load or manual page navigation
+          _allLoadedSessions = List.from(paginatedResult.sessions);
+        }
+        _totalPages = paginatedResult.totalPages;
+      });
     } catch (e) {
-      if (mounted) {
-        setState(() => _error = e.toString());
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      setState(() {
+        if (!append) {
+          _allLoadedSessions = [];
+        }
+      });
     }
   }
 
-  Future<void> _clearLogs() async {
+  Future<void> _loadNextPageInfinite() async {
+    if (_currentPage >= _totalPages - 1 || _isLoadingMore) return;
+
+    setState(() {
+      _isLoadingMore = true;
+      _currentPage++;
+    });
+
+    await _loadPaginatedData(append: true);
+
+    setState(() {
+      _isLoadingMore = false;
+    });
+  }
+
+  Future<void> _deleteSession(LogSession session) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Clear Logs'),
-        content: const Text(
-          'Are you sure you want to clear all log files? This action cannot be undone.',
+        title: const Text('Delete Session'),
+        content: Text(
+          'Are you sure you want to delete this session and all its logs?\n\n'
+          'Session: ${session.id}\n'
+          'Created: ${_formatDateTime(session.createdAt)}\n'
+          'Logs: ${session.logCount}',
         ),
         actions: [
           TextButton(
@@ -95,7 +111,7 @@ class _LogInspectorScreenState extends State<LogInspectorScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Clear'),
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -107,23 +123,21 @@ class _LogInspectorScreenState extends State<LogInspectorScreen> {
 
     setState(() {
       _isLoading = true;
-      _error = null;
     });
 
     try {
-      await _loggerService.cleanLogs();
-      await _loadLogsInfo(); // Reload to update UI
+      await _loggerService.deleteSession(session.id);
+      await _loadSessionsInfo(); // Reload to update UI
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Logs cleared successfully')),
+          const SnackBar(content: Text('Session deleted successfully')),
         );
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _error = e.toString());
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error clearing logs: ${e.toString()}')),
+          SnackBar(content: Text('Error deleting session: ${e.toString()}')),
         );
       }
     } finally {
@@ -133,212 +147,307 @@ class _LogInspectorScreenState extends State<LogInspectorScreen> {
     }
   }
 
-  String _formatFileSize(int bytes) {
-    if (bytes < 1024) {
-      return '$bytes B';
+  Future<void> _downloadSessionLogs(LogSession session) async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await _loggerService.downloadLogsForSession(session.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Session logs download triggered.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
-    if (bytes < 1024 * 1024) {
-      return '${(bytes / 1024).toStringAsFixed(1)} KB';
+  }
+
+  void _viewSessionLogs(LogSession session) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => DetailedLogsScreen(sessionId: session.id),
+      ),
+    );
+  }
+
+  String _getSessionDisplayName(String sessionId) {
+    try {
+      final parts = sessionId.split('_');
+      if (parts.isNotEmpty) {
+        final lastPart = parts.last;
+        if (lastPart.length > 8) {
+          return '${lastPart.substring(0, 8)}...';
+        } else {
+          return lastPart;
+        }
+      }
+      return sessionId;
+    } catch (e) {
+      // Fallback to first 8 characters of the full ID if parsing fails
+      return sessionId.length > 8 ? '${sessionId.substring(0, 8)}...' : sessionId;
     }
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
+  String _formatDateTime(DateTime dateTime) {
+    return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+  }
+
+  String _formatDuration(DateTime start, DateTime end) {
+    final duration = end.difference(start);
+    if (duration.inDays > 0) {
+      return '${duration.inDays}d ${duration.inHours % 24}h';
+    } else if (duration.inHours > 0) {
+      return '${duration.inHours}h ${duration.inMinutes % 60}m';
+    } else if (duration.inMinutes > 0) {
+      return '${duration.inMinutes}m';
+    } else {
+      return '${duration.inSeconds}s';
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Logs Inspector '),
+        title: const Text('Session Inspector'),
         actions: [
           IconButton(
-            icon: Icon(Icons.download),
-            onPressed: _isLoading ? null : _downloadLogs,
-          ),
-          IconButton(
-            icon: Icon(Icons.delete),
-            onPressed: _isLoading ? null : _clearLogs,
-          ),
-          IconButton(
             icon: Icon(Icons.refresh),
-            onPressed: _isLoading ? null : _loadLogsInfo,
+            onPressed: _isLoading ? null : _loadSessionsInfo,
+            tooltip: 'Refresh',
           ),
           const SizedBox(width: 8),
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                // Info card
-                Container(
-                  margin: const EdgeInsets.all(16),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: [],
-                  ),
+          : _allLoadedSessions.isEmpty
+              ? Center(
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Row(
-                        children: [
-                          Text(
-                            'Logs Information',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          const Spacer(),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: kIsWeb ? Colors.blue.shade100 : Colors.green.shade100,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: kIsWeb ? Colors.blue.shade300 : Colors.green.shade300,
-                              ),
-                            ),
-                            child: Text(
-                              kIsWeb ? 'WEB' : 'MOBILE/DESKTOP',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: kIsWeb ? Colors.blue.shade700 : Colors.green.shade700,
-                              ),
-                            ),
-                          ),
-                        ],
+                      Icon(
+                        Icons.folder_outlined,
+                        size: 48,
+                        color: Colors.grey.shade400,
                       ),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Files: $_logFilesCount'),
-                          Text('Size: ${_formatFileSize(_logsSizeBytes)}'),
-                        ],
+                      const SizedBox(height: 16),
+                      Text(
+                        'No sessions found',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey.shade600,
+                        ),
                       ),
-                      if (kIsWeb && _logFilesCount > 0) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          'Source: localStorage',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
-                      if (_error != null) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          'Error: $_error',
-                          style: const TextStyle(color: Colors.red),
-                        ),
-                      ],
                     ],
                   ),
-                ),
-                // Logs content
-                Expanded(
-                  child: Container(
-                    margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [],
+                )
+              : NotificationListener<ScrollNotification>(
+                  onNotification: (ScrollNotification scrollInfo) {
+                    // Auto-load next page when close to bottom (within 200 pixels)
+                    if (scrollInfo.metrics.pixels >= scrollInfo.metrics.maxScrollExtent - 200 &&
+                        _currentPage < _totalPages - 1 &&
+                        !_isLoading &&
+                        !_isLoadingMore) {
+                      _loadNextPageInfinite();
+                    }
+                    return false;
+                  },
+                  child: ListView.separated(
+                    controller: _scrollController,
+                    itemCount: _allLoadedSessions.length + (_currentPage < _totalPages - 1 ? 1 : 0),
+                    separatorBuilder: (context, index) => const Divider(
+                      height: 1,
+                      color: Colors.grey,
+                      thickness: 0.1,
                     ),
-                    child: _logsContent.isEmpty
-                        ? Center(
-                            child: Column(
+                    itemBuilder: (context, index) {
+                      // Show loading indicator for next page
+                      if (index >= _allLoadedSessions.length) {
+                        return Container(
+                          padding: const EdgeInsets.all(16),
+                          child: Center(
+                            child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(
-                                  Icons.description_outlined,
-                                  size: 48,
-                                  color: Colors.grey.shade400,
+                                SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
                                 ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'No logs found',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  kIsWeb
-                                      ? 'Start adding logs to see them here'
-                                      : 'File system logging not implemented yet',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey.shade500,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
+                                const SizedBox(width: 8),
+                                Text(_isLoadingMore
+                                    ? 'Loading more sessions...'
+                                    : 'Loading next page...'),
                               ],
                             ),
-                          )
-                        : Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          ),
+                        );
+                      }
+
+                      final session = _allLoadedSessions[index];
+                      final isCurrentSession = session.id == _loggerService.currentSessionId;
+
+                      return Card(
+                        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        child: ListTile(
+                          leading: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: isCurrentSession ? Colors.green : Colors.blue,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              isCurrentSession ? Icons.play_circle : Icons.folder,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ),
+                          title: Row(
                             children: [
-                              // Log header with metadata
-                              if (_logFilesCount > 0) ...[
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.shade100,
-                                    borderRadius: BorderRadius.circular(4),
-                                    border: Border.all(color: Colors.grey.shade300),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.info_outline,
-                                        size: 16,
-                                        color: Colors.grey.shade600,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        'Showing ${_logsContent.split('\n').where((line) => line.trim().isNotEmpty).length} log entries',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey.shade700,
-                                        ),
-                                      ),
-                                      const Spacer(),
-                                      Text(
-                                        'Last updated: ${DateTime.now().toString().substring(0, 19)}',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color: Colors.grey.shade600,
-                                        ),
-                                      ),
-                                    ],
+                              Expanded(
+                                child: Text(
+                                  'Session ${_getSessionDisplayName(session.id)}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
                                   ),
                                 ),
-                                const SizedBox(height: 12),
-                              ],
-                              // Log content
-                              Expanded(
-                                child: SingleChildScrollView(
-                                  child: SelectableText(
-                                    _logsContent,
-                                    style: const TextStyle(
-                                      fontFamily: 'monospace',
-                                      fontSize: 12,
-                                      height: 1.4,
+                              ),
+                              if (isCurrentSession)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Text(
+                                    'ACTIVE',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                 ),
+                            ],
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 4),
+                              Text(
+                                '${session.logCount} logs',
+                                style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Row(
+                                children: [
+                                  Icon(Icons.access_time, size: 12, color: Colors.grey.shade500),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Created: ${_formatDateTime(session.createdAt)}',
+                                    style: TextStyle(
+                                      color: Colors.grey.shade500,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              Row(
+                                children: [
+                                  Icon(Icons.update, size: 12, color: Colors.grey.shade500),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Last: ${_formatDateTime(session.lastActivityAt)}',
+                                    style: TextStyle(
+                                      color: Colors.grey.shade500,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '(${_formatDuration(session.createdAt, session.lastActivityAt)})',
+                                    style: TextStyle(
+                                      color: Colors.grey.shade400,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
+                          trailing: PopupMenuButton<String>(
+                            onSelected: (value) {
+                              switch (value) {
+                                case 'view':
+                                  _viewSessionLogs(session);
+                                  break;
+                                case 'download':
+                                  _downloadSessionLogs(session);
+                                  break;
+                                case 'delete':
+                                  if (!isCurrentSession) {
+                                    _deleteSession(session);
+                                  }
+                                  break;
+                              }
+                            },
+                            itemBuilder: (context) => [
+                              const PopupMenuItem(
+                                value: 'view',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.visibility, size: 16),
+                                    SizedBox(width: 8),
+                                    Text('View Logs'),
+                                  ],
+                                ),
+                              ),
+                              const PopupMenuItem(
+                                value: 'download',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.download, size: 16),
+                                    SizedBox(width: 8),
+                                    Text('Download'),
+                                  ],
+                                ),
+                              ),
+                              if (!isCurrentSession)
+                                const PopupMenuItem(
+                                  value: 'delete',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.delete, size: 16, color: Colors.red),
+                                      SizedBox(width: 8),
+                                      Text('Delete', style: TextStyle(color: Colors.red)),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
+                          onTap: () => _viewSessionLogs(session),
+                        ),
+                      );
+                    },
                   ),
                 ),
-              ],
-            ),
     );
   }
 }
