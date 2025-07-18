@@ -1,13 +1,14 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:idb_shim/idb_browser.dart';
-import 'package:idb_sqflite/idb_sqflite.dart';
+import 'package:log_inspector/src/database/database_interface.dart';
+import 'package:log_inspector/src/database/database_service.dart';
+import 'package:log_inspector/src/services/logs_service.dart';
+import 'package:log_inspector/src/services/sessions_service.dart';
 import 'package:log_inspector/src/download/universal_download.dart';
 import 'package:log_inspector/src/models/paginated_logs.dart';
 import 'package:log_inspector/src/models/session.dart';
 import 'package:logger/logger.dart';
-import 'package:sqflite/sqflite.dart' as sqflite;
 
 /// Web implementation of UniversalLoggerOutput using IndexedDB with session support
 class UniversalLoggerOutput extends LogOutput {
@@ -15,7 +16,12 @@ class UniversalLoggerOutput extends LogOutput {
     this.shouldLog = true,
     this.localStorageKey = 'log_inspector_logs',
     this.logFileName = 'app_logs',
-  }) {
+    DatabaseInterface? databaseService,
+    LogsService? logsService,
+    SessionsService? sessionsService,
+  })  : _databaseService = databaseService ?? DatabaseService.instance,
+        _logsService = logsService ?? LogsService.instance,
+        _sessionsService = sessionsService ?? SessionsService.instance {
     _instance ??= this;
     _currentSessionId = _generateSessionId();
   }
@@ -34,6 +40,9 @@ class UniversalLoggerOutput extends LogOutput {
   final bool shouldLog;
   final String localStorageKey;
   final String logFileName;
+  final DatabaseInterface _databaseService;
+  final LogsService _logsService;
+  final SessionsService _sessionsService;
 
   // Session management
   String _currentSessionId = '';
@@ -41,40 +50,30 @@ class UniversalLoggerOutput extends LogOutput {
   /// Get the current session ID
   String get currentSessionId => _currentSessionId;
 
-  // IndexedDB-specific properties
-  static const String _dbName = 'LogInspectorDB';
-  static const String _logsStoreName = 'logs';
-  static const String _sessionsStoreName = 'sessions';
-  static const int _dbVersion = 2; // Incremented for schema change
-
-  Database? _database;
   final List<String> _webLogs = [];
   bool _isInitialized = false;
 
   /// Generate a unique session ID
   String _generateSessionId() {
-    return 'session_${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecond}';
+    return 'session_${DateTime.now().millisecondsSinceEpoch}';
   }
 
   /// Create a new session (called when creating a new instance or explicitly)
 
   /// Create a session record in the database
   Future<void> _createSessionRecord() async {
-    if (_database == null || !_isInitialized) return;
+    if (!_databaseService.isInitialized) return;
 
     try {
-      final transaction = _database!.transaction(_sessionsStoreName, 'readwrite');
-      final store = transaction.objectStore(_sessionsStoreName);
-
       final now = DateTime.now();
-      await store.add({
-        'id': _currentSessionId,
-        'createdAt': now.millisecondsSinceEpoch,
-        'lastActivityAt': now.millisecondsSinceEpoch,
-        'logCount': 0,
-      });
+      final session = LogSession(
+        id: _currentSessionId,
+        createdAt: now,
+        lastActivityAt: now,
+        logCount: 0,
+      );
 
-      await transaction.completed;
+      await _sessionsService.createSession(session);
       debugPrint('Created new session: $_currentSessionId');
     } catch (e) {
       debugPrint('Error creating session record: $e');
@@ -86,31 +85,8 @@ class UniversalLoggerOutput extends LogOutput {
     if (!shouldLog) return;
 
     try {
-      IdbFactory factory;
-
-      if (kIsWeb) {
-        factory = getIdbFactory()!;
-      } else {
-        // Initialize sqflite database factory for non-web platforms
-        // This ensures the underlying sqflite database factory is properly initialized
-        factory = getIdbFactorySqflite(sqflite.databaseFactory);
-      }
-
-      _database = await factory.open(_dbName, version: _dbVersion,
-          onUpgradeNeeded: (VersionChangeEvent event) {
-        final db = event.database;
-
-        // Create logs store
-        if (!db.objectStoreNames.contains(_logsStoreName)) {
-          db.createObjectStore(_logsStoreName, keyPath: 'id', autoIncrement: true);
-        }
-
-        // Create sessions store
-        if (!db.objectStoreNames.contains(_sessionsStoreName)) {
-          db.createObjectStore(_sessionsStoreName, keyPath: 'id');
-        }
-      });
-
+      // Initialize the database service
+      await _databaseService.init();
       _isInitialized = true;
 
       // Load existing logs for current session
@@ -118,32 +94,24 @@ class UniversalLoggerOutput extends LogOutput {
 
       // Create session record
       await _createSessionRecord();
-      debugPrint('IndexedDB logger initialized with session: $_currentSessionId');
+      debugPrint('Logger initialized with session: $_currentSessionId');
     } catch (e) {
-      debugPrint('Error initializing IndexedDB logger: $e');
+      debugPrint('Error initializing logger: $e');
       _isInitialized = false;
     }
   }
 
   Future<void> _loadLogs() async {
-    if (_database == null) return;
+    if (!_databaseService.isInitialized) return;
 
     try {
-      final transaction = _database!.transaction(_logsStoreName, 'readonly');
-      final store = transaction.objectStore(_logsStoreName);
-      final request = store.getAll();
-      final results = await request;
-
+      final logs = await _logsService.getLogsForSession(_currentSessionId);
       _webLogs.clear();
-      for (final item in results) {
-        if (item is Map && item['log'] != null && item['sessionId'] == _currentSessionId) {
-          _webLogs.add(item['log'].toString());
-        }
-      }
+      _webLogs.addAll(logs);
 
-      debugPrint('Loaded ${_webLogs.length} logs from IndexedDB for session $_currentSessionId');
+      debugPrint('Loaded ${_webLogs.length} logs from database for session $_currentSessionId');
     } catch (e) {
-      debugPrint('Error loading logs from IndexedDB: $e');
+      debugPrint('Error loading logs from database: $e');
     }
   }
 
@@ -165,44 +133,21 @@ class UniversalLoggerOutput extends LogOutput {
   }
 
   Future<void> _storeLogs(List<String> newLogs) async {
-    if (_database == null || !_isInitialized) return;
+    if (!_databaseService.isInitialized) return;
 
     try {
-      final transaction = _database!.transaction(_logsStoreName, 'readwrite');
-      final store = transaction.objectStore(_logsStoreName);
-
-      for (final log in newLogs) {
-        await store.add({
-          'log': log,
-          'sessionId': _currentSessionId,
-          'timestamp': DateTime.now().millisecondsSinceEpoch,
-        });
-      }
-
-      await transaction.completed;
+      await _logsService.storeLogs(newLogs, _currentSessionId);
     } catch (e) {
-      debugPrint('Error storing logs to IndexedDB: $e');
+      debugPrint('Error storing logs to database: $e');
     }
   }
 
   /// Update session activity and log count
   Future<void> _updateSessionActivity(int newLogCount) async {
-    if (_database == null || !_isInitialized) return;
+    if (!_databaseService.isInitialized) return;
 
     try {
-      final transaction = _database!.transaction(_sessionsStoreName, 'readwrite');
-      final store = transaction.objectStore(_sessionsStoreName);
-
-      final sessionData = await store.getObject(_currentSessionId);
-      if (sessionData != null && sessionData is Map) {
-        final updatedSession = Map<String, dynamic>.from(sessionData);
-        updatedSession['lastActivityAt'] = DateTime.now().millisecondsSinceEpoch;
-        updatedSession['logCount'] = (updatedSession['logCount'] as int) + newLogCount;
-
-        await store.put(updatedSession);
-      }
-
-      await transaction.completed;
+      await _sessionsService.updateSessionActivity(_currentSessionId, newLogCount);
     } catch (e) {
       debugPrint('Error updating session activity: $e');
     }
@@ -211,10 +156,6 @@ class UniversalLoggerOutput extends LogOutput {
   @override
   Future<void> destroy() async {
     _webLogs.clear();
-    if (_database != null) {
-      _database!.close();
-      _database = null;
-    }
     _isInitialized = false;
   }
 
@@ -256,14 +197,14 @@ class UniversalLoggerOutput extends LogOutput {
     return _webLogs.sublist(startIndex, endIndex);
   }
 
-  /// Read logs page directly from IndexedDB (more efficient for large datasets)
+  /// Read logs page directly from database (more efficient for large datasets)
   /// This method doesn't load all logs into memory first
   Future<List<String>> readLogsPageFromDB(int page, {int pageSize = 100, String? sessionId}) async {
     if (!_isInitialized) {
       await init();
     }
 
-    if (_database == null) {
+    if (!_databaseService.isInitialized) {
       return <String>[];
     }
 
@@ -274,71 +215,30 @@ class UniversalLoggerOutput extends LogOutput {
     final targetSessionId = sessionId ?? _currentSessionId;
 
     try {
-      final transaction = _database!.transaction(_logsStoreName, 'readonly');
-      final store = transaction.objectStore(_logsStoreName);
-
-      // Use cursor to efficiently skip and read only the needed logs
-      final List<String> logs = [];
-      int skipCount = page * pageSize;
-      int readCount = 0;
-
-      await for (final cursor in store.openCursor()) {
-        final value = cursor.value;
-        if (value is Map && value['log'] != null && value['sessionId'] == targetSessionId) {
-          if (skipCount > 0) {
-            skipCount--;
-            cursor.next();
-            continue;
-          }
-
-          if (readCount >= pageSize) {
-            break;
-          }
-
-          logs.add(value['log'].toString());
-          readCount++;
-        }
-
-        cursor.next();
-      }
-
-      return logs;
+      return await _logsService.getLogsPageForSession(targetSessionId, page, pageSize);
     } catch (e) {
-      debugPrint('Error reading logs page from IndexedDB: $e');
+      debugPrint('Error reading logs page from database: $e');
       // Fallback to in-memory pagination
       return await readLogsPage(page, pageSize: pageSize);
     }
   }
 
-  /// Get total number of logs directly from IndexedDB for a specific session
+  /// Get total number of logs directly from database for a specific session
   Future<int> getTotalLogsCount({String? sessionId}) async {
     if (!_isInitialized) {
       await init();
     }
 
-    if (_database == null) {
+    if (!_databaseService.isInitialized) {
       return _webLogs.length;
     }
 
     final targetSessionId = sessionId ?? _currentSessionId;
 
     try {
-      final transaction = _database!.transaction(_logsStoreName, 'readonly');
-      final store = transaction.objectStore(_logsStoreName);
-
-      // Count logs for specific session
-      int count = 0;
-      await for (final cursor in store.openCursor()) {
-        final value = cursor.value;
-        if (value is Map && value['log'] != null && value['sessionId'] == targetSessionId) {
-          count++;
-        }
-        cursor.next();
-      }
-
-      return count;
+      return await _logsService.getTotalLogsCountForSession(targetSessionId);
     } catch (e) {
-      debugPrint('Error getting logs count from IndexedDB: $e');
+      debugPrint('Error getting logs count from database: $e');
       return _webLogs.length;
     }
   }
@@ -446,47 +346,21 @@ class UniversalLoggerOutput extends LogOutput {
 
     _webLogs.clear();
 
-    if (_database != null) {
+    if (_databaseService.isInitialized) {
       try {
         if (allSessions) {
           // Clear all logs and sessions
-          final logsTransaction = _database!.transaction(_logsStoreName, 'readwrite');
-          final logsStore = logsTransaction.objectStore(_logsStoreName);
-          await logsStore.clear();
-          await logsTransaction.completed;
-
-          final sessionsTransaction = _database!.transaction(_sessionsStoreName, 'readwrite');
-          final sessionsStore = sessionsTransaction.objectStore(_sessionsStoreName);
-          await sessionsStore.clear();
-          await sessionsTransaction.completed;
-
-          debugPrint('All IndexedDB logs and sessions cleared');
+          await _logsService.clearAllLogs();
+          await _sessionsService.clearAllSessions();
+          debugPrint('All database logs and sessions cleared');
         } else {
           // Clear only current session logs
-          final transaction = _database!.transaction(_logsStoreName, 'readwrite');
-          final store = transaction.objectStore(_logsStoreName);
-
-          // Delete logs for current session
-          await for (final cursor in store.openCursor()) {
-            final value = cursor.value;
-            if (value is Map && value['sessionId'] == _currentSessionId) {
-              cursor.delete();
-            }
-            cursor.next();
-          }
-
-          await transaction.completed;
-
-          // Also remove the session record
-          final sessionTransaction = _database!.transaction(_sessionsStoreName, 'readwrite');
-          final sessionStore = sessionTransaction.objectStore(_sessionsStoreName);
-          await sessionStore.delete(_currentSessionId);
-          await sessionTransaction.completed;
-
-          debugPrint('IndexedDB logs for session $_currentSessionId cleared');
+          await _logsService.deleteLogsForSession(_currentSessionId);
+          await _sessionsService.deleteSession(_currentSessionId);
+          debugPrint('Database logs for session $_currentSessionId cleared');
         }
       } catch (e) {
-        debugPrint('Error clearing IndexedDB logs: $e');
+        debugPrint('Error clearing database logs: $e');
       }
     }
   }
@@ -532,32 +406,14 @@ class UniversalLoggerOutput extends LogOutput {
       await init();
     }
 
-    if (_database == null) {
+    if (!_databaseService.isInitialized) {
       return [];
     }
 
     try {
-      final transaction = _database!.transaction(_sessionsStoreName, 'readonly');
-      final store = transaction.objectStore(_sessionsStoreName);
-      final request = store.getAll();
-      final results = await request;
-
-      final sessions = <LogSession>[];
-      for (final item in results) {
-        if (item is Map<String, dynamic>) {
-          try {
-            sessions.add(LogSession.fromMap(item));
-          } catch (e) {
-            debugPrint('Error parsing session: $e');
-          }
-        }
-      }
-
-      // Sort by creation date (newest first)
-      sessions.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      return sessions;
+      return await _sessionsService.getAllSessions();
     } catch (e) {
-      debugPrint('Error getting sessions from IndexedDB: $e');
+      debugPrint('Error getting sessions from database: $e');
       return [];
     }
   }
@@ -592,21 +448,14 @@ class UniversalLoggerOutput extends LogOutput {
       await init();
     }
 
-    if (_database == null) {
+    if (!_databaseService.isInitialized) {
       return null;
     }
 
     try {
-      final transaction = _database!.transaction(_sessionsStoreName, 'readonly');
-      final store = transaction.objectStore(_sessionsStoreName);
-      final result = await store.getObject(sessionId);
-
-      if (result != null && result is Map<String, dynamic>) {
-        return LogSession.fromMap(result);
-      }
-      return null;
+      return await _sessionsService.getSession(sessionId);
     } catch (e) {
-      debugPrint('Error getting session from IndexedDB: $e');
+      debugPrint('Error getting session from database: $e');
       return null;
     }
   }
@@ -617,28 +466,14 @@ class UniversalLoggerOutput extends LogOutput {
       await init();
     }
 
-    if (_database == null) return;
+    if (!_databaseService.isInitialized) return;
 
     try {
       // Delete logs for this session
-      final logsTransaction = _database!.transaction(_logsStoreName, 'readwrite');
-      final logsStore = logsTransaction.objectStore(_logsStoreName);
-
-      await for (final cursor in logsStore.openCursor()) {
-        final value = cursor.value;
-        if (value is Map && value['sessionId'] == sessionId) {
-          cursor.delete();
-        }
-        cursor.next();
-      }
-
-      await logsTransaction.completed;
+      await _logsService.deleteLogsForSession(sessionId);
 
       // Delete session record
-      final sessionTransaction = _database!.transaction(_sessionsStoreName, 'readwrite');
-      final sessionStore = sessionTransaction.objectStore(_sessionsStoreName);
-      await sessionStore.delete(sessionId);
-      await sessionTransaction.completed;
+      await _sessionsService.deleteSession(sessionId);
 
       debugPrint('Deleted session: $sessionId');
     } catch (e) {
@@ -652,23 +487,12 @@ class UniversalLoggerOutput extends LogOutput {
       await init();
     }
 
-    if (_database == null) {
+    if (!_databaseService.isInitialized) {
       return '';
     }
 
     try {
-      final transaction = _database!.transaction(_logsStoreName, 'readonly');
-      final store = transaction.objectStore(_logsStoreName);
-      final logs = <String>[];
-
-      await for (final cursor in store.openCursor()) {
-        final value = cursor.value;
-        if (value is Map && value['log'] != null && value['sessionId'] == sessionId) {
-          logs.add(value['log'].toString());
-        }
-        cursor.next();
-      }
-
+      final logs = await _logsService.getLogsForSession(sessionId);
       return logs.join('\n');
     } catch (e) {
       debugPrint('Error getting logs content for session: $e');

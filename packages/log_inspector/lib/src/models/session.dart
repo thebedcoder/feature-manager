@@ -23,8 +23,8 @@ class LogSession {
   factory LogSession.fromMap(Map<String, dynamic> map) {
     return LogSession(
       id: map['id'] as String,
-      createdAt: DateTime.fromMillisecondsSinceEpoch(map['createdAt'] as int),
-      lastActivityAt: DateTime.fromMillisecondsSinceEpoch(map['lastActivityAt'] as int),
+      createdAt: DateTime.fromMicrosecondsSinceEpoch(map['createdAt'] as int),
+      lastActivityAt: DateTime.fromMicrosecondsSinceEpoch(map['lastActivityAt'] as int),
       logCount: map['logCount'] as int,
     );
   }
@@ -33,8 +33,8 @@ class LogSession {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
-      'createdAt': createdAt.millisecondsSinceEpoch,
-      'lastActivityAt': lastActivityAt.millisecondsSinceEpoch,
+      'createdAt': createdAt.microsecondsSinceEpoch,
+      'lastActivityAt': lastActivityAt.microsecondsSinceEpoch,
       'logCount': logCount,
     };
   }

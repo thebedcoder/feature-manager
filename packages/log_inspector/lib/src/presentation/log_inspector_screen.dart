@@ -219,7 +219,7 @@ class _LogInspectorScreenState extends State<LogInspectorScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Session Inspector'),
+        title: const Text('Log Inspector'),
         actions: [
           IconButton(
             icon: Icon(Icons.refresh),

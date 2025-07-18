@@ -6,7 +6,9 @@ import 'package:flutter/foundation.dart';
 class UniversalDownload {
   static Future<void> downloadLogs(String content, [String logFileName = 'app_logs']) async {
     try {
-      final fileName = '${logFileName}_${DateTime.now().millisecondsSinceEpoch}.txt';
+      final currentTime = DateTime.now();
+      final fileName =
+          '${logFileName}_${currentTime.year}_${currentTime.month}_${currentTime.day}_${currentTime.hour}_${currentTime.minute}.txt';
 
       // Use html APIs for web download
       final blob = html.Blob([content], 'text/plain');
