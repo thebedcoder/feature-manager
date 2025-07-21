@@ -1,3 +1,4 @@
+import 'package:idb_shim/idb.dart';
 import 'package:log_inspector/src/database/database_interface.dart';
 import 'package:log_inspector/src/database/database_service.dart';
 
@@ -26,7 +27,8 @@ class LogsService {
 
   /// Get all logs for a specific session
   Future<List<String>> getLogsForSession(String sessionId) async {
-    final records = await (_database as DatabaseService).queryBySessionId(sessionId);
+    final records =
+        await _database.query(DatabaseService.logsStoreName, keyRange: KeyRange.only(sessionId));
 
     final logs = <String>[];
     for (final record in records) {
@@ -40,8 +42,8 @@ class LogsService {
 
   /// Get paginated logs for a specific session
   Future<List<String>> getLogsPageForSession(String sessionId, int page, int pageSize) async {
-    final records = await (_database as DatabaseService).getPageBySessionId(
-      sessionId,
+    final records = await (_database as DatabaseService).getPageByKeyRange(
+      KeyRange.only(sessionId),
       page,
       pageSize,
     );
@@ -57,14 +59,14 @@ class LogsService {
   }
 
   /// Get total number of logs for a specific session
-  Future<int> getTotalLogsCountForSession(String sessionId) async {
-    return await (_database as DatabaseService).countBySessionId(sessionId);
+  Future<int> getTotalLogsCountForSession(String sessionId) {
+    return _database.count(DatabaseService.logsStoreName, keyRange: KeyRange.only(sessionId));
   }
 
   /// Delete all logs for a specific session
   Future<void> deleteLogsForSession(String sessionId) async {
-    // Get all logs for the session first
-    final records = await (_database as DatabaseService).queryBySessionId(sessionId);
+    final records =
+        await _database.query(DatabaseService.logsStoreName, keyRange: KeyRange.only(sessionId));
 
     // Delete each log record
     for (final record in records) {
@@ -80,8 +82,8 @@ class LogsService {
   }
 
   /// Get total logs count across all sessions
-  Future<int> getTotalLogsCount() async {
-    return await _database.count(DatabaseService.logsStoreName);
+  Future<int> getTotalLogsCount() {
+    return _database.count(DatabaseService.logsStoreName);
   }
 
   /// Dispose the singleton instance

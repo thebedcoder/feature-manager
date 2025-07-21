@@ -50,12 +50,12 @@ class UniversalLoggerOutput extends LogOutput {
   /// Get the current session ID
   String get currentSessionId => _currentSessionId;
 
-  final List<String> _webLogs = [];
   bool _isInitialized = false;
 
   /// Generate a unique session ID
   String _generateSessionId() {
-    return 'session_${DateTime.now().millisecondsSinceEpoch}';
+    final currentTime = DateTime.now();
+    return '${currentTime.year}/${currentTime.month}/${currentTime.day} ${currentTime.hour}:${currentTime.minute}:${currentTime.second}';
   }
 
   /// Create a new session (called when creating a new instance or explicitly)
@@ -89,9 +89,6 @@ class UniversalLoggerOutput extends LogOutput {
       await _databaseService.init();
       _isInitialized = true;
 
-      // Load existing logs for current session
-      await _loadLogs();
-
       // Create session record
       await _createSessionRecord();
       debugPrint('Logger initialized with session: $_currentSessionId');
@@ -101,29 +98,12 @@ class UniversalLoggerOutput extends LogOutput {
     }
   }
 
-  Future<void> _loadLogs() async {
-    if (!_databaseService.isInitialized) return;
-
-    try {
-      final logs = await _logsService.getLogsForSession(_currentSessionId);
-      _webLogs.clear();
-      _webLogs.addAll(logs);
-
-      debugPrint('Loaded ${_webLogs.length} logs from database for session $_currentSessionId');
-    } catch (e) {
-      debugPrint('Error loading logs from database: $e');
-    }
-  }
-
   @override
   void output(OutputEvent event) {
     if (!shouldLog) return;
 
     // Console output
     event.lines.forEach(debugPrint);
-
-    // Add logs to memory array
-    _webLogs.addAll(event.lines);
 
     // Store in IndexedDB with session information
     _storeLogs(event.lines);
@@ -155,7 +135,6 @@ class UniversalLoggerOutput extends LogOutput {
 
   @override
   Future<void> destroy() async {
-    _webLogs.clear();
     _isInitialized = false;
   }
 
@@ -165,11 +144,17 @@ class UniversalLoggerOutput extends LogOutput {
       await init();
     }
 
-    if (_webLogs.isEmpty) {
-      await _loadLogs();
+    if (!_databaseService.isInitialized) {
+      return '';
     }
 
-    return _webLogs.join('\n');
+    try {
+      final logs = await _logsService.getLogsForSession(_currentSessionId);
+      return logs.join('\n');
+    } catch (e) {
+      debugPrint('Error getting logs content: $e');
+      return '';
+    }
   }
 
   /// Read logs with pagination
@@ -179,22 +164,16 @@ class UniversalLoggerOutput extends LogOutput {
       await init();
     }
 
-    if (_webLogs.isEmpty) {
-      await _loadLogs();
-    }
-
     if (page < 0) {
       throw ArgumentError('Page number must be non-negative');
     }
 
-    final startIndex = page * pageSize;
-    final endIndex = (startIndex + pageSize).clamp(0, _webLogs.length);
-
-    if (startIndex >= _webLogs.length) {
+    try {
+      return await _logsService.getLogsPageForSession(_currentSessionId, page, pageSize);
+    } catch (e) {
+      debugPrint('Error reading logs page: $e');
       return <String>[];
     }
-
-    return _webLogs.sublist(startIndex, endIndex);
   }
 
   /// Read logs page directly from database (more efficient for large datasets)
@@ -230,7 +209,7 @@ class UniversalLoggerOutput extends LogOutput {
     }
 
     if (!_databaseService.isInitialized) {
-      return _webLogs.length;
+      return 0;
     }
 
     final targetSessionId = sessionId ?? _currentSessionId;
@@ -239,7 +218,7 @@ class UniversalLoggerOutput extends LogOutput {
       return await _logsService.getTotalLogsCountForSession(targetSessionId);
     } catch (e) {
       debugPrint('Error getting logs count from database: $e');
-      return _webLogs.length;
+      return 0;
     }
   }
 
@@ -249,15 +228,12 @@ class UniversalLoggerOutput extends LogOutput {
       await init();
     }
 
-    if (_webLogs.isEmpty) {
-      await _loadLogs();
-    }
-
     if (pageSize <= 0) {
       throw ArgumentError('Page size must be positive');
     }
 
-    return (_webLogs.length / pageSize).ceil();
+    final totalLogs = await getTotalLogsCount();
+    return (totalLogs / pageSize).ceil();
   }
 
   /// Get paginated logs with metadata for a specific session
@@ -267,30 +243,7 @@ class UniversalLoggerOutput extends LogOutput {
     }
 
     final targetSessionId = sessionId ?? _currentSessionId;
-
-    // If requesting current session, use in-memory data
-    if (targetSessionId == _currentSessionId) {
-      if (_webLogs.isEmpty) {
-        await _loadLogs();
-      }
-
-      final totalLogs = _webLogs.length;
-      final totalPages = (totalLogs / pageSize).ceil();
-      final logs = await readLogsPage(page, pageSize: pageSize);
-
-      return PaginatedLogs(
-        logs: logs,
-        currentPage: page,
-        pageSize: pageSize,
-        totalLogs: totalLogs,
-        totalPages: totalPages,
-        hasNextPage: page < totalPages - 1,
-        hasPreviousPage: page > 0,
-      );
-    } else {
-      // For other sessions, use database directly
-      return await readLogsPaginatedFromDB(page, pageSize: pageSize, sessionId: targetSessionId);
-    }
+    return await readLogsPaginatedFromDB(page, pageSize: pageSize, sessionId: targetSessionId);
   }
 
   /// Get paginated logs directly from IndexedDB with metadata for a specific session
@@ -322,7 +275,8 @@ class UniversalLoggerOutput extends LogOutput {
       await init();
     }
 
-    return _webLogs.isNotEmpty ? 1 : 0;
+    final totalLogs = await getTotalLogsCount();
+    return totalLogs > 0 ? 1 : 0;
   }
 
   /// Get the total size of logs in bytes
@@ -331,11 +285,8 @@ class UniversalLoggerOutput extends LogOutput {
       await init();
     }
 
-    if (_webLogs.isEmpty) {
-      await _loadLogs();
-    }
-
-    return utf8.encode(_webLogs.join('\n')).length;
+    final content = await getLogsContent();
+    return utf8.encode(content).length;
   }
 
   /// Clear all logs for current session or all sessions
@@ -343,8 +294,6 @@ class UniversalLoggerOutput extends LogOutput {
     if (!_isInitialized) {
       await init();
     }
-
-    _webLogs.clear();
 
     if (_databaseService.isInitialized) {
       try {
@@ -371,15 +320,10 @@ class UniversalLoggerOutput extends LogOutput {
       await init();
     }
 
-    if (_webLogs.isEmpty) {
-      await _loadLogs();
-    }
-
-    if (_webLogs.isEmpty) return;
+    final content = await getLogsContent();
+    if (content.isEmpty) return;
 
     try {
-      final content = _webLogs.join('\n');
-
       await UniversalDownload.downloadLogs(content);
     } catch (e) {
       debugPrint('Error downloading web logs: $e');

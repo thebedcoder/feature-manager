@@ -8,7 +8,7 @@ class UniversalDownload {
     try {
       final currentTime = DateTime.now();
       final fileName =
-          '${logFileName}_${currentTime.year}_${currentTime.month}_${currentTime.day}_${currentTime.hour}_${currentTime.minute}.txt';
+          '${logFileName}_${currentTime.year}_${currentTime.month}_${currentTime.day}_${currentTime.hour}_${currentTime.minute}_${currentTime.second}.txt';
 
       // Use html APIs for web download
       final blob = html.Blob([content], 'text/plain');

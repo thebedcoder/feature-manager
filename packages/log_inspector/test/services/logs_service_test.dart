@@ -27,7 +27,7 @@ void main() {
     test('should handle log data correctly', () {
       final testLogs = ['Log 1', 'Log 2', 'Log 3'];
       final sessionId = 'test-session';
-      
+
       // This test demonstrates the interface but requires actual database setup
       // In a real test, you would mock the database service
       expect(testLogs.length, equals(3));
@@ -40,22 +40,22 @@ void main() {
         {'log': 'Log 2', 'sessionId': 'session-2'},
         {'log': 'Log 3', 'sessionId': 'session-1'},
       ];
-      
+
       final filteredLogs = allLogs.where((log) => log['sessionId'] == 'session-1').toList();
       expect(filteredLogs.length, equals(2));
     });
 
     test('should handle pagination correctly', () {
       final logs = List.generate(25, (i) => 'Log ${i + 1}');
-      
+
       // Simulate pagination
       final page = 1;
       final pageSize = 10;
       final startIndex = page * pageSize;
       final endIndex = (startIndex + pageSize).clamp(0, logs.length);
-      
+
       final paginatedLogs = logs.sublist(startIndex, endIndex);
-      
+
       expect(paginatedLogs.length, equals(10));
       expect(paginatedLogs.first, equals('Log 11'));
       expect(paginatedLogs.last, equals('Log 20'));
@@ -68,12 +68,11 @@ void main() {
         'Error: Database connection failed',
         'Debug: Processing request',
       ];
-      
+
       final searchTerm = 'error';
-      final filteredLogs = logs.where((log) => 
-        log.toLowerCase().contains(searchTerm.toLowerCase())
-      ).toList();
-      
+      final filteredLogs =
+          logs.where((log) => log.toLowerCase().contains(searchTerm.toLowerCase())).toList();
+
       expect(filteredLogs.length, equals(2));
       expect(filteredLogs[0], contains('Error: Something went wrong'));
       expect(filteredLogs[1], contains('Error: Database connection failed'));

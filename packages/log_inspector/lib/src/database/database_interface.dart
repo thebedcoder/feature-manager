@@ -34,14 +34,9 @@ abstract class DatabaseInterface {
   /// Clear all records from the specified store
   Future<void> clear(String storeName);
 
-  /// Get paginated records from the specified store
-  Future<List<Map<String, dynamic>>> getPage(
-    String storeName,
-    int page,
-    int pageSize, {
-    bool Function(Map<String, dynamic>)? filter,
-  });
-
   /// Count records in the specified store
-  Future<int> count(String storeName, {bool Function(Map<String, dynamic>)? filter});
+  Future<int> count(String storeName, {KeyRange? keyRange});
+
+  /// Query records from the specified store using a KeyRange filter
+  Future<List<Map<String, dynamic>>> query(String storeName, {KeyRange? keyRange});
 }

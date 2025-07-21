@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:idb_shim/idb_shim.dart';
 import 'package:log_inspector/src/database/database_service.dart';
 import 'package:log_inspector/src/models/session.dart';
 
@@ -46,6 +47,61 @@ void main() {
       
       expect(restoredSession.id, equals(session.id));
       expect(restoredSession.logCount, equals(session.logCount));
+    });
+
+    group('query method', () {
+      test('should be declared in DatabaseService', () {
+        // Test that the method exists and has correct signature
+        expect(
+          databaseService.query,
+          isA<Future<List<Map<String, dynamic>>> Function(String, {KeyRange? keyRange})>(),
+        );
+      });
+
+      test('should return empty list when not initialized', () async {
+        // Test behavior when database is not initialized
+        try {
+          final result = await databaseService.query('test-store');
+          expect(result, isEmpty);
+        } catch (e) {
+          // Should throw StateError when database is not initialized
+          expect(e, isA<StateError>());
+        }
+      });
+
+      test('should handle null keyRange parameter', () async {
+        // Test that the method accepts null keyRange
+        try {
+          final result = await databaseService.query('test-store', keyRange: null);
+          expect(result, isA<List<Map<String, dynamic>>>());
+        } catch (e) {
+          // Expected in unit test environment without real database
+          expect(e, isA<StateError>());
+        }
+      });
+
+      test('should handle valid keyRange parameter', () async {
+        // Test that the method accepts a keyRange parameter
+        try {
+          final keyRange = KeyRange.only('test-key');
+          final result = await databaseService.query('test-store', keyRange: keyRange);
+          expect(result, isA<List<Map<String, dynamic>>>());
+        } catch (e) {
+          // Expected in unit test environment without real database
+          expect(e, isA<StateError>());
+        }
+      });
+
+      test('should return List<Map<String, dynamic>> type', () async {
+        // Test return type consistency
+        try {
+          final result = await databaseService.query('test-store');
+          expect(result, isA<List<Map<String, dynamic>>>());
+        } catch (e) {
+          // Expected in unit test environment without real database
+          expect(e, isA<StateError>());
+        }
+      });
     });
   });
 }

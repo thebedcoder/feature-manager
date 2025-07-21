@@ -180,39 +180,8 @@ class _LogInspectorScreenState extends State<LogInspectorScreen> {
     );
   }
 
-  String _getSessionDisplayName(String sessionId) {
-    try {
-      final parts = sessionId.split('_');
-      if (parts.isNotEmpty) {
-        final lastPart = parts.last;
-        if (lastPart.length > 8) {
-          return '${lastPart.substring(0, 8)}...';
-        } else {
-          return lastPart;
-        }
-      }
-      return sessionId;
-    } catch (e) {
-      // Fallback to first 8 characters of the full ID if parsing fails
-      return sessionId.length > 8 ? '${sessionId.substring(0, 8)}...' : sessionId;
-    }
-  }
-
   String _formatDateTime(DateTime dateTime) {
     return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
-  }
-
-  String _formatDuration(DateTime start, DateTime end) {
-    final duration = end.difference(start);
-    if (duration.inDays > 0) {
-      return '${duration.inDays}d ${duration.inHours % 24}h';
-    } else if (duration.inHours > 0) {
-      return '${duration.inHours}h ${duration.inMinutes % 60}m';
-    } else if (duration.inMinutes > 0) {
-      return '${duration.inMinutes}m';
-    } else {
-      return '${duration.inSeconds}s';
-    }
   }
 
   @override
@@ -263,16 +232,10 @@ class _LogInspectorScreenState extends State<LogInspectorScreen> {
                     }
                     return false;
                   },
-                  child: ListView.separated(
+                  child: ListView.builder(
                     controller: _scrollController,
                     itemCount: _allLoadedSessions.length + (_currentPage < _totalPages - 1 ? 1 : 0),
-                    separatorBuilder: (context, index) => const Divider(
-                      height: 1,
-                      color: Colors.grey,
-                      thickness: 0.1,
-                    ),
                     itemBuilder: (context, index) {
-                      // Show loading indicator for next page
                       if (index >= _allLoadedSessions.length) {
                         return Container(
                           padding: const EdgeInsets.all(16),
@@ -300,149 +263,146 @@ class _LogInspectorScreenState extends State<LogInspectorScreen> {
 
                       return Card(
                         margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        child: ListTile(
-                          leading: Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: isCurrentSession ? Colors.green : Colors.blue,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Icon(
-                              isCurrentSession ? Icons.play_circle : Icons.folder,
-                              color: Colors.white,
-                              size: 24,
-                            ),
-                          ),
-                          title: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  'Session ${_getSessionDisplayName(session.id)}',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                  ),
-                                ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: ListTile(
+                            leading: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: isCurrentSession ? Colors.green : Colors.blue,
+                                borderRadius: BorderRadius.circular(8),
                               ),
-                              if (isCurrentSession)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.green,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: const Text(
-                                    'ACTIVE',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10,
+                              child: Icon(
+                                isCurrentSession ? Icons.play_circle : Icons.folder,
+                                color: Colors.white,
+                                size: 24,
+                              ),
+                            ),
+                            title: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    session.id,
+                                    style: const TextStyle(
                                       fontWeight: FontWeight.bold,
+                                      fontSize: 14,
                                     ),
+                                    overflow: TextOverflow.visible,
                                   ),
                                 ),
-                            ],
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const SizedBox(height: 4),
-                              Text(
-                                '${session.logCount} logs',
-                                style: TextStyle(
-                                  color: Colors.grey.shade600,
-                                  fontSize: 12,
+                                if (isCurrentSession)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Text(
+                                      'ACTIVE',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${session.logCount} logs',
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 12,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 2),
-                              Row(
-                                children: [
-                                  Icon(Icons.access_time, size: 12, color: Colors.grey.shade500),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'Created: ${_formatDateTime(session.createdAt)}',
-                                    style: TextStyle(
-                                      color: Colors.grey.shade500,
-                                      fontSize: 10,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 2),
-                              Row(
-                                children: [
-                                  Icon(Icons.update, size: 12, color: Colors.grey.shade500),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'Last: ${_formatDateTime(session.lastActivityAt)}',
-                                    style: TextStyle(
-                                      color: Colors.grey.shade500,
-                                      fontSize: 10,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    '(${_formatDuration(session.createdAt, session.lastActivityAt)})',
-                                    style: TextStyle(
-                                      color: Colors.grey.shade400,
-                                      fontSize: 10,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          trailing: PopupMenuButton<String>(
-                            onSelected: (value) {
-                              switch (value) {
-                                case 'view':
-                                  _viewSessionLogs(session);
-                                  break;
-                                case 'download':
-                                  _downloadSessionLogs(session);
-                                  break;
-                                case 'delete':
-                                  if (!isCurrentSession) {
-                                    _deleteSession(session);
-                                  }
-                                  break;
-                              }
-                            },
-                            itemBuilder: (context) => [
-                              const PopupMenuItem(
-                                value: 'view',
-                                child: Row(
+                                const SizedBox(height: 2),
+                                Row(
                                   children: [
-                                    Icon(Icons.visibility, size: 16),
-                                    SizedBox(width: 8),
-                                    Text('View Logs'),
+                                    Icon(Icons.access_time, size: 12, color: Colors.grey.shade500),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Created: ${_formatDateTime(session.createdAt)}',
+                                      style: TextStyle(
+                                        color: Colors.grey.shade500,
+                                        fontSize: 10,
+                                      ),
+                                    ),
                                   ],
                                 ),
-                              ),
-                              const PopupMenuItem(
-                                value: 'download',
-                                child: Row(
+                                const SizedBox(height: 2),
+                                Row(
                                   children: [
-                                    Icon(Icons.download, size: 16),
-                                    SizedBox(width: 8),
-                                    Text('Download'),
+                                    Icon(Icons.update, size: 12, color: Colors.grey.shade500),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Last: ${_formatDateTime(session.lastActivityAt)}',
+                                      style: TextStyle(
+                                        color: Colors.grey.shade500,
+                                        fontSize: 10,
+                                      ),
+                                    ),
                                   ],
                                 ),
-                              ),
-                              if (!isCurrentSession)
+                              ],
+                            ),
+                            trailing: PopupMenuButton<String>(
+                              onSelected: (value) {
+                                switch (value) {
+                                  case 'view':
+                                    _viewSessionLogs(session);
+                                    break;
+                                  case 'download':
+                                    _downloadSessionLogs(session);
+                                    break;
+                                  case 'delete':
+                                    if (!isCurrentSession) {
+                                      _deleteSession(session);
+                                    }
+                                    break;
+                                }
+                              },
+                              itemBuilder: (context) => [
                                 const PopupMenuItem(
-                                  value: 'delete',
+                                  value: 'view',
                                   child: Row(
                                     children: [
-                                      Icon(Icons.delete, size: 16, color: Colors.red),
+                                      Icon(Icons.visibility, size: 16),
                                       SizedBox(width: 8),
-                                      Text('Delete', style: TextStyle(color: Colors.red)),
+                                      Text('View Logs'),
                                     ],
                                   ),
                                 ),
-                            ],
+                                const PopupMenuItem(
+                                  value: 'download',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.download, size: 16),
+                                      SizedBox(width: 8),
+                                      Text('Download'),
+                                    ],
+                                  ),
+                                ),
+                                if (!isCurrentSession)
+                                  const PopupMenuItem(
+                                    value: 'delete',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.delete, size: 16, color: Colors.red),
+                                        SizedBox(width: 8),
+                                        Text('Delete', style: TextStyle(color: Colors.red)),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            onTap: () => _viewSessionLogs(session),
                           ),
-                          onTap: () => _viewSessionLogs(session),
                         ),
                       );
                     },

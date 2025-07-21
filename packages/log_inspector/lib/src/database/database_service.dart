@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:idb_shim/idb_browser.dart';
-import 'package:idb_shim/idb.dart';
 import 'package:idb_sqflite/idb_sqflite.dart';
 import 'package:log_inspector/src/database/database_interface.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
@@ -57,7 +56,6 @@ class DatabaseService implements DatabaseInterface {
       if (kIsWeb) {
         factory = getIdbFactory()!;
       } else {
-        // Initialize sqflite database factory for non-web platforms
         factory = getIdbFactorySqflite(sqflite.databaseFactory);
       }
 
@@ -137,13 +135,16 @@ class DatabaseService implements DatabaseInterface {
   /// Update a record in the specified store
   @override
   Future<void> update(String storeName, String key, Map<String, dynamic> data) async {
-    // Ensure the key is present
-    data[(_database!.transaction(storeName, 'readwrite').objectStore(storeName).keyPath)
-        as String] = key;
     await _transaction<void>(
       storeName,
       'readwrite',
-      (store) => store.put(data),
+      (store) async {
+        final keyPath = store.keyPath;
+        if (keyPath is String) {
+          data[keyPath] = key;
+        }
+        await store.put(data);
+      },
     );
     if (kDebugMode) debugPrint('Updated record in $storeName');
   }
@@ -170,54 +171,31 @@ class DatabaseService implements DatabaseInterface {
     if (kDebugMode) debugPrint('Cleared all records from $storeName');
   }
 
-  /// Efficiently query records by sessionId using index
-  Future<List<Map<String, dynamic>>> queryBySessionId(String sessionId) async {
+  /// Query records from the specified store using a KeyRange filter
+  @override
+  Future<List<Map<String, dynamic>>> query(String storeName, {KeyRange? keyRange}) async {
     await _ensureInitialized();
 
     try {
-      final transaction = _database!.transaction(logsStoreName, 'readonly');
-      final store = transaction.objectStore(logsStoreName);
-      final index = store.index('sessionId');
+      return await _transaction<List<Map<String, dynamic>>>(
+        storeName,
+        'readonly',
+        (store) async {
+          final index = store.index('sessionId');
 
-      final records = <Map<String, dynamic>>[];
-      final keyRange = KeyRange.only(sessionId);
-
-      // Use index cursor for efficient filtering
-      await for (final cursor in index.openCursor(range: keyRange)) {
-        final value = cursor.value;
-        if (value is Map<String, dynamic>) {
-          records.add(value);
-        }
-        cursor.next();
-      }
-
-      return records;
+          final all = await index.getAll(keyRange);
+          return all.whereType<Map<String, dynamic>>().toList();
+        },
+      );
     } catch (e) {
-      debugPrint('Error querying records by sessionId: $e');
+      if (kDebugMode) debugPrint('Error querying records from $storeName: $e');
       return [];
     }
   }
 
-  /// Count records by sessionId using index
-  Future<int> countBySessionId(String sessionId) async {
-    await _ensureInitialized();
-
-    try {
-      final transaction = _database!.transaction(logsStoreName, 'readonly');
-      final store = transaction.objectStore(logsStoreName);
-      final index = store.index('sessionId');
-
-      final keyRange = KeyRange.only(sessionId);
-      return await index.count(keyRange);
-    } catch (e) {
-      debugPrint('Error counting records by sessionId: $e');
-      return 0;
-    }
-  }
-
   /// Get paginated records by sessionId using index
-  Future<List<Map<String, dynamic>>> getPageBySessionId(
-    String sessionId,
+  Future<List<Map<String, dynamic>>> getPageByKeyRange(
+    KeyRange keyRange,
     int page,
     int pageSize,
   ) async {
@@ -232,10 +210,8 @@ class DatabaseService implements DatabaseInterface {
     }
 
     try {
-      final keyRange = KeyRange.only(sessionId);
       final offset = page * pageSize;
 
-      // Use the same pattern as the existing pagination code
       return await _transaction<List<Map<String, dynamic>>>(
         logsStoreName,
         'readonly',
@@ -243,28 +219,34 @@ class DatabaseService implements DatabaseInterface {
           final index = store.index('sessionId');
           final records = <Map<String, dynamic>>[];
 
-          // Get first cursor with key range
+          // Open cursor with key range - don't use autoAdvance for manual control
           final cursorStream = index.openCursor(range: keyRange);
-          final cursor = await cursorStream.first;
 
-          // Skip to the desired page using cursor.advance() - much more efficient!
-          if (offset > 0) {
-            cursor.advance(offset);
-          }
-
+          bool hasAdvanced = false;
           int collected = 0;
-          // Collect records for this page
-          while (collected < pageSize) {
-            final value = cursor.value;
-            if (value is Map<String, dynamic>) {
-              records.add(value);
-              collected++;
-            } else {
-              break; // No more records
+
+          await for (final cursor in cursorStream) {
+            // Skip to the desired page on first iteration
+            if (!hasAdvanced && offset > 0) {
+              cursor.advance(offset);
+              hasAdvanced = true;
+              continue;
             }
 
+            // Collect records for this page
             if (collected < pageSize) {
-              cursor.next();
+              final value = cursor.value;
+              if (value is Map<String, dynamic>) {
+                records.add(value);
+                collected++;
+              }
+
+              // Continue to next record if we need more
+              if (collected < pageSize) {
+                cursor.next();
+              }
+            } else {
+              break; // We have enough records
             }
           }
 
@@ -272,124 +254,24 @@ class DatabaseService implements DatabaseInterface {
         },
       );
     } catch (e) {
-      debugPrint('Error getting page by sessionId: $e');
-      return [];
-    }
-  }
-
-  /// Get paginated records from the specified store
-  @override
-  Future<List<Map<String, dynamic>>> getPage(String storeName, int page, int pageSize,
-      {bool Function(Map<String, dynamic>)? filter}) async {
-    await _ensureInitialized();
-
-    if (page < 0) {
-      throw ArgumentError('Page number must be non-negative');
-    }
-
-    if (pageSize <= 0) {
-      throw ArgumentError('Page size must be positive');
-    }
-
-    try {
-      final transaction = _database!.transaction(storeName, 'readonly');
-      final store = transaction.objectStore(storeName);
-
-      final List<Map<String, dynamic>> records = [];
-      final offset = page * pageSize;
-
-      // If no filter is provided, use more efficient approach
-      if (filter == null) {
-        return await _transaction<List<Map<String, dynamic>>>(
-          storeName,
-          'readonly',
-          (store) async {
-            final List<Map<String, dynamic>> records = [];
-            final cursor = await store.openCursor().first;
-            cursor.advance(page * pageSize);
-            int collected = 0;
-            while (collected < pageSize) {
-              final v = cursor.value;
-              if (v is Map<String, dynamic>) {
-                records.add(v);
-                collected++;
-              }
-              cursor.next();
-            }
-            return records;
-          },
-        );
-      } else {
-        // When filter is provided, we need to iterate through all records
-        // but we can still optimize by tracking filtered count
-        int filteredCount = 0;
-        int collected = 0;
-
-        await for (final cursor in store.openCursor()) {
-          final value = cursor.value;
-          if (value is Map<String, dynamic>) {
-            final matchesFilter = filter(value);
-
-            if (matchesFilter) {
-              // Skip records until we reach the offset
-              if (filteredCount < offset) {
-                filteredCount++;
-                cursor.next();
-                continue;
-              }
-
-              // Collect records for this page
-              records.add(value);
-              collected++;
-
-              if (collected >= pageSize) {
-                break;
-              }
-            }
-          }
-          cursor.next();
-        }
-      }
-
-      return records;
-    } catch (e) {
-      debugPrint('Error reading page from $storeName: $e');
+      if (kDebugMode) debugPrint('Error getting page by sessionId: $e');
       return [];
     }
   }
 
   /// Count records in the specified store
   @override
-  Future<int> count(String storeName, {bool Function(Map<String, dynamic>)? filter}) async {
+  Future<int> count(String storeName, {KeyRange? keyRange}) async {
     await _ensureInitialized();
 
     try {
-      final transaction = _database!.transaction(storeName, 'readonly');
-      final store = transaction.objectStore(storeName);
-
-      if (filter == null) {
-        return await _transaction<int>(
-          storeName,
-          'readonly',
-          (store) => store.count(),
-        );
-      }
-
-      int count = 0;
-      await for (final cursor in store.openCursor()) {
-        final value = cursor.value;
-        if (value is Map<String, dynamic>) {
-          final matchesFilter = filter(value);
-          if (matchesFilter) {
-            count++;
-          }
-        }
-        cursor.next();
-      }
-
-      return count;
+      return _transaction<int>(
+        storeName,
+        'readonly',
+        (store) => store.count(keyRange),
+      );
     } catch (e) {
-      debugPrint('Error counting records in $storeName: $e');
+      if (kDebugMode) debugPrint('Error counting records in $storeName: $e');
       return 0;
     }
   }

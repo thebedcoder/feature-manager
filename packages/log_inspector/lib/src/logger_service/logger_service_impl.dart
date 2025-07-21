@@ -40,7 +40,6 @@ class LoggerServiceImpl implements LoggerService {
     return await _logger.getLogsSizeInBytes();
   }
 
-  // Session-related implementations
   @override
   Future<List<LogSession>> getAllSessions() => _logger.getAllSessions();
 

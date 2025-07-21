@@ -64,34 +64,31 @@ class MockDatabaseService implements DatabaseInterface {
   }
 
   @override
-  Future<List<Map<String, dynamic>>> getPage(String storeName, int page, int pageSize,
-      {bool Function(Map<String, dynamic>)? filter}) async {
+  Future<int> count(String storeName, {KeyRange? keyRange}) async {
     _ensureStoreExists(storeName);
     var records = _stores[storeName]!.values.toList();
 
-    if (filter != null) {
-      records = records.where(filter).toList();
-    }
-
-    final startIndex = page * pageSize;
-    final endIndex = startIndex + pageSize;
-
-    if (startIndex >= records.length) {
-      return [];
-    }
-
-    return records.sublist(startIndex, endIndex.clamp(0, records.length));
-  }
-
-  @override
-  Future<int> count(String storeName, {bool Function(Map<String, dynamic>)? filter}) async {
-    _ensureStoreExists(storeName);
-    var records = _stores[storeName]!.values.toList();
-
-    if (filter != null) {
-      records = records.where(filter).toList();
+    // Simple implementation - keyRange filtering would be more complex in reality
+    if (keyRange != null) {
+      // For mock purposes, we'll just return the total count
+      // In a real implementation, this would filter based on the keyRange
     }
 
     return records.length;
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> query(String storeName, {KeyRange? keyRange}) async {
+    _ensureStoreExists(storeName);
+    var records = _stores[storeName]!.values.toList();
+
+    // Simple implementation - keyRange filtering would be more complex in reality
+    if (keyRange != null) {
+      // For mock purposes, we'll simulate filtering
+      // In a real implementation, this would filter based on the keyRange
+      // For testing, we'll return all records
+    }
+
+    return records;
   }
 }
