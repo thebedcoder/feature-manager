@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:log_inspector/src/logger_service/logger_service.dart';
-import 'package:log_inspector/src/logger_service/logger_service_impl.dart';
+import 'package:log_inspector/src/services/logger_service/logger_service.dart';
+import 'package:log_inspector/src/services/logger_service/logger_service_impl.dart';
 import 'package:log_inspector/src/models/session.dart';
 import 'package:log_inspector/src/presentation/detailed_logs_screen.dart';
 

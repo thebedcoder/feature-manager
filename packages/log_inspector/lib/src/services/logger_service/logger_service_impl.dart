@@ -1,5 +1,5 @@
 import 'package:log_inspector/src/logger_output/universal_logger_output.dart';
-import 'package:log_inspector/src/logger_service/logger_service.dart';
+import 'package:log_inspector/src/services/logger_service/logger_service.dart';
 import 'package:log_inspector/src/models/paginated_logs.dart';
 import 'package:log_inspector/src/models/session.dart';
 
@@ -21,27 +21,9 @@ class LoggerServiceImpl implements LoggerService {
   Future<void> downloadLogs() => _logger.downloadLogs();
 
   @override
-  Future<String> readLogs() {
-    return _logger.getLogsContent();
-  }
-
-  @override
   Future<PaginatedLogs> readLogsPaginated(int page, {int pageSize = 100}) {
     return _logger.readLogsPaginated(page, pageSize: pageSize);
   }
-
-  @override
-  Future<int> getLogFilesCount() async {
-    return await _logger.getLogFilesCount();
-  }
-
-  @override
-  Future<int> getLogsSizeInBytes() async {
-    return await _logger.getLogsSizeInBytes();
-  }
-
-  @override
-  Future<List<LogSession>> getAllSessions() => _logger.getAllSessions();
 
   @override
   Future<PaginatedSessions> getSessionsPaginated(int page, {int pageSize = 20}) {
@@ -49,18 +31,10 @@ class LoggerServiceImpl implements LoggerService {
   }
 
   @override
-  Future<LogSession?> getSession(String sessionId) => _logger.getSession(sessionId);
-
-  @override
   Future<void> deleteSession(String sessionId) => _logger.deleteSession(sessionId);
 
   @override
   String get currentSessionId => _logger.currentSessionId;
-
-  @override
-  Future<String> readLogsForSession(String sessionId) {
-    return _logger.getLogsContentForSession(sessionId);
-  }
 
   @override
   Future<PaginatedLogs> readLogsPaginatedForSession(String sessionId, int page,
