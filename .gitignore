@@ -79,3 +79,5 @@ example/pubspec.lock
 example/ios/Podfile.lock
 
 pubspec_overrides.yaml
+
+Podfile.lock
