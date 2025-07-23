@@ -10,8 +10,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 part 'feature_item.dart';
 
-class DeveloperPreferencesScreen extends StatefulWidget {
-  const DeveloperPreferencesScreen({
+class FeatureManagerScreen extends StatefulWidget {
+  const FeatureManagerScreen({
     required this.sharedPreferences,
     required this.featuresList,
     super.key,
@@ -21,12 +21,10 @@ class DeveloperPreferencesScreen extends StatefulWidget {
   final SharedPreferences sharedPreferences;
 
   @override
-  State<DeveloperPreferencesScreen> createState() =>
-      _DeveloperPreferencesScreenState();
+  State<FeatureManagerScreen> createState() => _FeatureManagerScreenState();
 }
 
-class _DeveloperPreferencesScreenState
-    extends State<DeveloperPreferencesScreen> {
+class _FeatureManagerScreenState extends State<FeatureManagerScreen> {
   late FeaturesCubit cubit;
 
   @override
