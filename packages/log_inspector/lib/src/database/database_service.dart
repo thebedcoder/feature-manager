@@ -241,9 +241,10 @@ class DatabaseService implements DatabaseInterface {
                 collected++;
               }
 
-              // Continue to next record if we need more
               if (collected < pageSize) {
                 cursor.next();
+              } else {
+                break; // We have enough records, exit the loop
               }
             } else {
               break; // We have enough records
@@ -268,7 +269,13 @@ class DatabaseService implements DatabaseInterface {
       return _transaction<int>(
         storeName,
         'readonly',
-        (store) => store.count(keyRange),
+        (store) {
+          if (keyRange == null) {
+            return store.count();
+          }
+          final index = store.index('sessionId');
+          return index.count(keyRange);
+        },
       );
     } catch (e) {
       if (kDebugMode) debugPrint('Error counting records in $storeName: $e');

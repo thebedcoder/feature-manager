@@ -137,7 +137,7 @@ class _DetailedLogsScreenState extends State<DetailedLogsScreen> {
       } else {
         await _loggerService.downloadLogs();
       }
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Logs download triggered.')),
@@ -157,10 +157,8 @@ class _DetailedLogsScreenState extends State<DetailedLogsScreen> {
   }
 
   Future<void> _clearLogs() async {
-    final sessionText = _isViewingSpecificSession 
-        ? 'this session\'s logs' 
-        : 'all log files';
-    
+    final sessionText = _isViewingSpecificSession ? 'this session\'s logs' : 'all log files';
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -195,7 +193,7 @@ class _DetailedLogsScreenState extends State<DetailedLogsScreen> {
       } else {
         await _loggerService.cleanLogs();
       }
-      
+
       await _loadLogsInfo(); // Reload to update UI
 
       if (mounted) {
@@ -220,8 +218,8 @@ class _DetailedLogsScreenState extends State<DetailedLogsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isViewingSpecificSession 
-            ? 'Session Logs (${_getSessionDisplayName(_targetSessionId)})' 
+        title: Text(_isViewingSpecificSession
+            ? 'Session Logs (${_getSessionDisplayName(_targetSessionId)})'
             : 'Logs Inspector'),
         actions: [
           IconButton(

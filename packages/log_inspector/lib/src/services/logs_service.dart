@@ -81,11 +81,6 @@ class LogsService {
     await _database.clear(DatabaseService.logsStoreName);
   }
 
-  /// Get total logs count across all sessions
-  Future<int> getTotalLogsCount() {
-    return _database.count(DatabaseService.logsStoreName);
-  }
-
   /// Dispose the singleton instance
   static void dispose() {
     _instance = null;

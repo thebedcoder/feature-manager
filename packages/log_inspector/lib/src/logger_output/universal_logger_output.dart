@@ -8,6 +8,7 @@ import 'package:log_inspector/src/services/sessions_service.dart';
 import 'package:log_inspector/src/download/universal_download.dart';
 import 'package:log_inspector/src/models/paginated_logs.dart';
 import 'package:log_inspector/src/models/session.dart';
+import 'package:log_inspector/src/utils/extensions/date_time_extension.dart';
 import 'package:logger/logger.dart';
 
 /// Web implementation of UniversalLoggerOutput using IndexedDB with session support
@@ -53,10 +54,7 @@ class UniversalLoggerOutput extends LogOutput {
   bool _isInitialized = false;
 
   /// Generate a unique session ID
-  String _generateSessionId() {
-    final currentTime = DateTime.now();
-    return '${currentTime.year}/${currentTime.month}/${currentTime.day} ${currentTime.hour}:${currentTime.minute}:${currentTime.second}';
-  }
+  String _generateSessionId() => DateTime.now().toSessionId();
 
   /// Create a new session (called when creating a new instance or explicitly)
 
@@ -215,7 +213,7 @@ class UniversalLoggerOutput extends LogOutput {
     final targetSessionId = sessionId ?? _currentSessionId;
 
     try {
-      return await _logsService.getTotalLogsCountForSession(targetSessionId);
+      return _logsService.getTotalLogsCountForSession(targetSessionId);
     } catch (e) {
       debugPrint('Error getting logs count from database: $e');
       return 0;

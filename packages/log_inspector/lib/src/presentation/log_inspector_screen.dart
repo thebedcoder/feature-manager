@@ -3,6 +3,7 @@ import 'package:log_inspector/src/services/logger_service/logger_service.dart';
 import 'package:log_inspector/src/services/logger_service/logger_service_impl.dart';
 import 'package:log_inspector/src/models/session.dart';
 import 'package:log_inspector/src/presentation/detailed_logs_screen.dart';
+import 'package:log_inspector/src/utils/extensions/date_time_extension.dart';
 
 class LogInspectorScreen extends StatefulWidget {
   const LogInspectorScreen({super.key});
@@ -101,7 +102,7 @@ class _LogInspectorScreenState extends State<LogInspectorScreen> {
         content: Text(
           'Are you sure you want to delete this session and all its logs?\n\n'
           'Session: ${session.id}\n'
-          'Created: ${_formatDateTime(session.createdAt)}\n'
+          'Created: ${session.createdAt.formatDateTime()}\n'
           'Logs: ${session.logCount}',
         ),
         actions: [
@@ -178,10 +179,6 @@ class _LogInspectorScreenState extends State<LogInspectorScreen> {
         builder: (context) => DetailedLogsScreen(sessionId: session.id),
       ),
     );
-  }
-
-  String _formatDateTime(DateTime dateTime) {
-    return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
 
   @override
@@ -327,7 +324,7 @@ class _LogInspectorScreenState extends State<LogInspectorScreen> {
                                     Icon(Icons.access_time, size: 12, color: Colors.grey.shade500),
                                     const SizedBox(width: 4),
                                     Text(
-                                      'Created: ${_formatDateTime(session.createdAt)}',
+                                      'Created: ${session.createdAt.formatDateTime()}',
                                       style: TextStyle(
                                         color: Colors.grey.shade500,
                                         fontSize: 10,
@@ -341,7 +338,7 @@ class _LogInspectorScreenState extends State<LogInspectorScreen> {
                                     Icon(Icons.update, size: 12, color: Colors.grey.shade500),
                                     const SizedBox(width: 4),
                                     Text(
-                                      'Last: ${_formatDateTime(session.lastActivityAt)}',
+                                      'Last: ${session.lastActivityAt.formatDateTime()}',
                                       style: TextStyle(
                                         color: Colors.grey.shade500,
                                         fontSize: 10,

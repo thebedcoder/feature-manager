@@ -22,7 +22,7 @@ class SessionsService {
   /// Get all sessions from the database
   Future<List<LogSession>> getAllSessions() async {
     final records = await _database.readAll(DatabaseService.sessionsStoreName);
-    
+
     final sessions = <LogSession>[];
     for (final record in records) {
       try {
@@ -41,7 +41,7 @@ class SessionsService {
   /// Get session by ID
   Future<LogSession?> getSession(String sessionId) async {
     final record = await _database.read(DatabaseService.sessionsStoreName, sessionId);
-    
+
     if (record != null) {
       try {
         return LogSession.fromMap(record);
@@ -50,14 +50,14 @@ class SessionsService {
         return null;
       }
     }
-    
+
     return null;
   }
 
   /// Update session activity and log count
   Future<void> updateSessionActivity(String sessionId, int additionalLogCount) async {
     final existingRecord = await _database.read(DatabaseService.sessionsStoreName, sessionId);
-    
+
     if (existingRecord != null) {
       final updatedSession = Map<String, dynamic>.from(existingRecord);
       updatedSession['lastActivityAt'] = DateTime.now().millisecondsSinceEpoch;
@@ -75,11 +75,6 @@ class SessionsService {
   /// Clear all sessions
   Future<void> clearAllSessions() async {
     await _database.clear(DatabaseService.sessionsStoreName);
-  }
-
-  /// Get sessions count
-  Future<int> getSessionsCount() async {
-    return await _database.count(DatabaseService.sessionsStoreName);
   }
 
   /// Dispose the singleton instance
