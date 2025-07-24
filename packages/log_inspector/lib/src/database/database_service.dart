@@ -72,7 +72,6 @@ class DatabaseService implements DatabaseInterface {
       });
 
       _isInitialized = true;
-      debugPrint('Database initialized successfully');
     } catch (e) {
       debugPrint('Error initializing database: $e');
       _isInitialized = false;
@@ -88,7 +87,6 @@ class DatabaseService implements DatabaseInterface {
       _database = null;
     }
     _isInitialized = false;
-    debugPrint('Database closed');
   }
 
   /// Dispose the singleton instance
@@ -107,7 +105,6 @@ class DatabaseService implements DatabaseInterface {
       'readwrite',
       (store) => store.add(data),
     );
-    if (kDebugMode) debugPrint('Created record in $storeName');
   }
 
   /// Read a single record by key from the specified store
@@ -146,7 +143,6 @@ class DatabaseService implements DatabaseInterface {
         await store.put(data);
       },
     );
-    if (kDebugMode) debugPrint('Updated record in $storeName');
   }
 
   /// Delete a record by key from the specified store
@@ -157,7 +153,6 @@ class DatabaseService implements DatabaseInterface {
       'readwrite',
       (store) => store.delete(key),
     );
-    if (kDebugMode) debugPrint('Deleted record from $storeName');
   }
 
   /// Clear all records from the specified store
@@ -168,7 +163,6 @@ class DatabaseService implements DatabaseInterface {
       'readwrite',
       (store) => store.clear(),
     );
-    if (kDebugMode) debugPrint('Cleared all records from $storeName');
   }
 
   /// Query records from the specified store using a KeyRange filter
@@ -188,7 +182,6 @@ class DatabaseService implements DatabaseInterface {
         },
       );
     } catch (e) {
-      if (kDebugMode) debugPrint('Error querying records from $storeName: $e');
       return [];
     }
   }
@@ -255,7 +248,6 @@ class DatabaseService implements DatabaseInterface {
         },
       );
     } catch (e) {
-      if (kDebugMode) debugPrint('Error getting page by sessionId: $e');
       return [];
     }
   }
@@ -278,7 +270,6 @@ class DatabaseService implements DatabaseInterface {
         },
       );
     } catch (e) {
-      if (kDebugMode) debugPrint('Error counting records in $storeName: $e');
       return 0;
     }
   }

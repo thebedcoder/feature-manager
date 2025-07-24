@@ -29,8 +29,8 @@ class UniversalDownload {
         ),
       );
     } catch (e) {
-      // Handle any errors during file creation or sharing
       debugPrint('Error creating or sharing log file: $e');
+      // Handle any errors during file creation or sharing
       rethrow;
     }
   }

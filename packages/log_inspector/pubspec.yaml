@@ -4,11 +4,11 @@ repository: https://github.com/thebedcoder/feature-manager/tree/master/packages/
 issue_tracker: https://github.com/thebedcoder/feature-manager/issues
 homepage: https://github.com/thebedcoder/feature-manager
 
-version: 1.0.1
+version: 1.0.2
 
 environment:
   sdk: ^3.6.0
-  flutter: ^3.0.0
+  flutter: '>=3.0.0'
 
 dependencies:
   flutter:

@@ -72,7 +72,6 @@ class UniversalLoggerOutput extends LogOutput {
       );
 
       await _sessionsService.createSession(session);
-      debugPrint('Created new session: $_currentSessionId');
     } catch (e) {
       debugPrint('Error creating session record: $e');
     }
@@ -89,7 +88,6 @@ class UniversalLoggerOutput extends LogOutput {
 
       // Create session record
       await _createSessionRecord();
-      debugPrint('Logger initialized with session: $_currentSessionId');
     } catch (e) {
       debugPrint('Error initializing logger: $e');
       _isInitialized = false;
