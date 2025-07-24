@@ -73,6 +73,7 @@ class DatabaseService implements DatabaseInterface {
 
       _isInitialized = true;
     } catch (e) {
+      debugPrint('Error initializing database: $e');
       _isInitialized = false;
       rethrow;
     }
