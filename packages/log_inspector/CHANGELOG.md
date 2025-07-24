@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.2] - 2025-07-24
+
+### Fixed
+
+- Remove redundant logs
+
 ## [1.0.1] - 2025-07-23
 
 ### Fixed
