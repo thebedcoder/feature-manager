@@ -1,8 +1,8 @@
 name: bedcode
 
 environment:
-  sdk: ^3.6.0
+  sdk: '>=3.7.0 <4.0.0'
 
 dev_dependencies:
-  melos: ^6.3.2
-  flutter_lints: ^5.0.0
+  melos: ^7.1.0
+  flutter_lints: ^6.0.0

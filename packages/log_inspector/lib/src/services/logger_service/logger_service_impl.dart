@@ -26,12 +26,14 @@ class LoggerServiceImpl implements LoggerService {
   }
 
   @override
-  Future<PaginatedSessions> getSessionsPaginated(int page, {int pageSize = 20}) {
+  Future<PaginatedSessions> getSessionsPaginated(int page,
+      {int pageSize = 20}) {
     return _logger.getSessionsPaginated(page, pageSize: pageSize);
   }
 
   @override
-  Future<void> deleteSession(String sessionId) => _logger.deleteSession(sessionId);
+  Future<void> deleteSession(String sessionId) =>
+      _logger.deleteSession(sessionId);
 
   @override
   String get currentSessionId => _logger.currentSessionId;
@@ -39,7 +41,8 @@ class LoggerServiceImpl implements LoggerService {
   @override
   Future<PaginatedLogs> readLogsPaginatedForSession(String sessionId, int page,
       {int pageSize = 100}) {
-    return _logger.readLogsPaginated(page, pageSize: pageSize, sessionId: sessionId);
+    return _logger.readLogsPaginated(page,
+        pageSize: pageSize, sessionId: sessionId);
   }
 
   @override
@@ -47,7 +50,8 @@ class LoggerServiceImpl implements LoggerService {
     final content = await _logger.getLogsContentForSession(sessionId);
     if (content.isNotEmpty) {
       // Use a modified download method that allows custom content
-      await _logger.downloadLogsWithContent(content, 'session_${sessionId}_logs');
+      await _logger.downloadLogsWithContent(
+          content, 'session_${sessionId}_logs');
     }
   }
 

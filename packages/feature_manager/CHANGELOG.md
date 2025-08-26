@@ -1,3 +1,9 @@
+## 3.1.2
+
+- **Version Bump**: Updated to version 3.1.2 for consistency with feature_manager_generator
+- **SDK**: Updated Dart SDK constraint from `'>=3.6.0 <4.0.0'` to `'>=3.7.0 <4.0.0'` for broader compatibility
+- **Maintenance**: Minor version bump with no breaking changes
+
 ## 3.1.1
 
 - Maintenance: Transitioned to Melos monorepo tooling

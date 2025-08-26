@@ -29,7 +29,7 @@ void main() {
     // Skip database operation tests in unit test environment
     // These would require proper database setup which is not suitable for unit tests
     // Integration tests would be more appropriate for testing actual database operations
-    
+
     test('should handle session creation models correctly', () {
       final session = LogSession(
         id: 'test-session',
@@ -37,14 +37,14 @@ void main() {
         lastActivityAt: DateTime.now(),
         logCount: 5,
       );
-      
+
       expect(session.id, equals('test-session'));
       expect(session.logCount, equals(5));
-      
+
       // Test serialization/deserialization
       final map = session.toMap();
       final restoredSession = LogSession.fromMap(map);
-      
+
       expect(restoredSession.id, equals(session.id));
       expect(restoredSession.logCount, equals(session.logCount));
     });

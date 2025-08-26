@@ -95,8 +95,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 Navigator.of(context)
                     .push(
                   MaterialPageRoute(
-                    builder: (BuildContext context) =>
-                        FeatureManagerScreen(
+                    builder: (BuildContext context) => FeatureManagerScreen(
                       featuresList: Features.instance().values,
                       sharedPreferences: context.read(),
                     ),

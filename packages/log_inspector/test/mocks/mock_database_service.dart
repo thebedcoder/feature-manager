@@ -29,8 +29,11 @@ class MockDatabaseService implements DatabaseInterface {
   @override
   Future<void> create(String storeName, Map<String, dynamic> data) async {
     _ensureStoreExists(storeName);
-    final key = data['id']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString();
-    _stores[storeName]![key] = Map.from(data);
+    final key = data['id']?.toString() ?? 
+        '${DateTime.now().millisecondsSinceEpoch}_${_stores[storeName]!.length}';
+    final recordWithId = Map<String, dynamic>.from(data);
+    recordWithId['id'] = key;
+    _stores[storeName]![key] = recordWithId;
   }
 
   @override
@@ -68,10 +71,17 @@ class MockDatabaseService implements DatabaseInterface {
     _ensureStoreExists(storeName);
     var records = _stores[storeName]!.values.toList();
 
-    // Simple implementation - keyRange filtering would be more complex in reality
+    // Filter by keyRange if provided
     if (keyRange != null) {
-      // For mock purposes, we'll just return the total count
-      // In a real implementation, this would filter based on the keyRange
+      final key = keyRange.lower.toString();
+      // Check if this is a sessionId filter or record ID filter
+      if (records.isNotEmpty && records.first.containsKey('sessionId')) {
+        // This is likely a sessionId filter
+        records = records.where((record) => record['sessionId'] == key).toList();
+      } else {
+        // This is likely a record ID filter - return total count for backward compatibility
+        return records.length;
+      }
     }
 
     return records.length;
@@ -82,13 +92,42 @@ class MockDatabaseService implements DatabaseInterface {
     _ensureStoreExists(storeName);
     var records = _stores[storeName]!.values.toList();
 
-    // Simple implementation - keyRange filtering would be more complex in reality
+    // Filter by keyRange if provided
     if (keyRange != null) {
-      // For mock purposes, we'll simulate filtering
-      // In a real implementation, this would filter based on the keyRange
-      // For testing, we'll return all records
+      final key = keyRange.lower.toString();
+      // Check if this is a sessionId filter or record ID filter
+      if (records.isNotEmpty && records.first.containsKey('sessionId')) {
+        // This is likely a sessionId filter
+        records = records.where((record) => record['sessionId'] == key).toList();
+      } else {
+        // This is likely a record ID filter - return all records for backward compatibility
+        return records;
+      }
     }
 
     return records;
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getPageByKeyRange(
+    KeyRange keyRange,
+    int page,
+    int pageSize,
+  ) async {
+    // Simple mock implementation for pagination
+    final allRecords = await query('logs', keyRange: keyRange);
+    
+    if (page < 0 || pageSize <= 0) {
+      return [];
+    }
+
+    final startIndex = page * pageSize;
+    final endIndex = (startIndex + pageSize).clamp(0, allRecords.length);
+
+    if (startIndex >= allRecords.length) {
+      return [];
+    }
+
+    return allRecords.sublist(startIndex, endIndex);
   }
 }

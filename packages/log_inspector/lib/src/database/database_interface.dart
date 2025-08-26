@@ -39,4 +39,11 @@ abstract class DatabaseInterface {
 
   /// Query records from the specified store using a KeyRange filter
   Future<List<Map<String, dynamic>>> query(String storeName, {KeyRange? keyRange});
+
+  /// Get paginated records by sessionId using index
+  Future<List<Map<String, dynamic>>> getPageByKeyRange(
+    KeyRange keyRange,
+    int page,
+    int pageSize,
+  );
 }
