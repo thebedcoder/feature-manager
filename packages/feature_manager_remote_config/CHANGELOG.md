@@ -1,3 +1,10 @@
+## 3.1.2
+
+- **Version Bump**: Updated to version 3.1.2 for consistency with other packages in the monorepo
+- **SDK**: Updated Dart SDK constraint from `^3.6.0` to `'>=3.7.0 <4.0.0'` for broader compatibility
+- **Dependencies**: Removed unused `flutter_lints` dependency from dev_dependencies
+- **Maintenance**: Minor version bump with no breaking changes
+
 ## 3.1.1
 
 - Maintenance: Transitioned to Melos monorepo tooling

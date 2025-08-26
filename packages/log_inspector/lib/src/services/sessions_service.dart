@@ -1,10 +1,11 @@
 import 'package:log_inspector/src/database/database_interface.dart';
 import 'package:log_inspector/src/database/database_service.dart';
 import 'package:log_inspector/src/models/session.dart';
+import 'package:flutter/foundation.dart';
 
 /// Service for managing log sessions
 class SessionsService {
-  SessionsService._();
+  SessionsService._([DatabaseInterface? database]) : _database = database ?? DatabaseService.instance;
 
   static SessionsService? _instance;
   static SessionsService get instance {
@@ -12,7 +13,14 @@ class SessionsService {
     return _instance!;
   }
 
-  final DatabaseInterface _database = DatabaseService.instance;
+  /// Create a test instance with a mock database
+  /// This should only be used for testing
+  @visibleForTesting
+  static SessionsService createForTesting(DatabaseInterface database) {
+    return SessionsService._(database);
+  }
+
+  final DatabaseInterface _database;
 
   /// Create a new session record
   Future<void> createSession(LogSession session) async {
@@ -40,7 +48,8 @@ class SessionsService {
 
   /// Get session by ID
   Future<LogSession?> getSession(String sessionId) async {
-    final record = await _database.read(DatabaseService.sessionsStoreName, sessionId);
+    final record =
+        await _database.read(DatabaseService.sessionsStoreName, sessionId);
 
     if (record != null) {
       try {
@@ -55,15 +64,19 @@ class SessionsService {
   }
 
   /// Update session activity and log count
-  Future<void> updateSessionActivity(String sessionId, int additionalLogCount) async {
-    final existingRecord = await _database.read(DatabaseService.sessionsStoreName, sessionId);
+  Future<void> updateSessionActivity(
+      String sessionId, int additionalLogCount) async {
+    final existingRecord =
+        await _database.read(DatabaseService.sessionsStoreName, sessionId);
 
     if (existingRecord != null) {
       final updatedSession = Map<String, dynamic>.from(existingRecord);
       updatedSession['lastActivityAt'] = DateTime.now().millisecondsSinceEpoch;
-      updatedSession['logCount'] = (updatedSession['logCount'] as int) + additionalLogCount;
+      updatedSession['logCount'] =
+          (updatedSession['logCount'] as int) + additionalLogCount;
 
-      await _database.update(DatabaseService.sessionsStoreName, sessionId, updatedSession);
+      await _database.update(
+          DatabaseService.sessionsStoreName, sessionId, updatedSession);
     }
   }
 

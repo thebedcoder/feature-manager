@@ -1,3 +1,17 @@
+## 3.1.2
+
+- **Breaking Change**: Migrated to analyzer 2.0 API with updated element types and method names
+  - Updated imports from `package:analyzer/dart/element/element.dart` to `package:analyzer/dart/element/element2.dart`
+  - Changed `Element` to `Element2`, `ClassElement` to `ClassElement2`, `FieldElement` to `FieldElement2`
+  - Updated method calls: `name` → `name3`, `fields` → `fields2`, `type.element` → `type.element3`, `metadata` → `metadata2.annotations`
+  - Updated `TypeChecker.fromRuntime()` to `TypeChecker.typeNamed()` for better compatibility
+- **Dependencies**: Updated core dependencies for better compatibility and performance
+  - analyzer: ^7.5.2 → ^7.4.0
+  - build: ^2.4.2 → ^3.0.0
+  - source_gen: ^2.0.0 → ^3.0.0
+- **SDK**: Updated Dart SDK constraint from `^3.6.0` to `'>=3.7.0 <4.0.0'` for broader compatibility
+- **Code Quality**: Improved null safety handling and code formatting throughout the generator
+
 ## 3.1.1
 
 - Maintenance: Transitioned to Melos monorepo tooling
