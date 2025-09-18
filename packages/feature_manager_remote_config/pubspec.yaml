@@ -3,7 +3,7 @@ description: Firebase Remote Config feature manager for developer preferences, e
 repository: https://github.com/thebedcoder/feature-manager/tree/master/packages/feature_manager_generator
 issue_tracker: https://github.com/thebedcoder/feature-manager/issues
 
-version: 3.1.2
+version: 3.1.3
 
 environment:
   sdk: '>=3.7.0 <4.0.0'
@@ -13,7 +13,7 @@ dependencies:
     sdk: flutter
   feature_manager: ">=3.0.4 <4.0.0"
   shared_preferences: ">=2.1.2 <3.0.0"
-  firebase_remote_config: ">=5.0.0 <6.0.0"
+  firebase_remote_config: ">=6.0.0 <7.0.0"
 
 dev_dependencies:
   flutter_test:
