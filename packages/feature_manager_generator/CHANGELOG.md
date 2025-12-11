@@ -1,3 +1,16 @@
+## 4.0.0
+
+- **Breaking Change**: Migrated from Element2 API back to Element API for analyzer 9.0.0 compatibility
+  - Updated imports from `package:analyzer/dart/element/element2.dart` to `package:analyzer/dart/element/element.dart`
+  - Changed `Element2` to `Element`, `ClassElement2` to `ClassElement`, `FieldElement2` to `FieldElement`
+  - Updated method calls: `name3` → `name`, `fields2` → `fields`, `type.element3` → `type.element`
+  - Replaced manual metadata iteration with `TypeChecker.firstAnnotationOfExact()` for better compatibility
+- **Dependencies**: Updated to latest versions for better compatibility and performance
+  - analyzer: ^7.4.0 → ^9.0.0
+  - build: ^3.0.0 → ^4.0.3
+  - source_gen: ^3.0.0 → ^4.1.1
+  - lints: ^5.1.1 → ^6.0.0
+
 ## 3.1.2
 
 - **Breaking Change**: Migrated to analyzer 2.0 API with updated element types and method names
@@ -33,7 +46,7 @@
 
 ## 3.0.4
 
-### Refactored Feature Type Handling:
+### Refactored Feature Type Handling
 
 - Removed FeatureValueType and replaced it with generic type inference for Feature<T>.
 - The generator now detects the correct feature type (`BooleanFeature`, `TextFeature`, etc.) based on the generic type (`Feature<bool>`, `Feature<String>,` etc.).

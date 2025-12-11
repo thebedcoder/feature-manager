@@ -10,14 +10,18 @@ dependencies:
   flutter:
     sdk: flutter
 
-  feature_manager: ^3.1.1
+  feature_manager: ^4.0.0
+  # feature_manager:
+  #   path: ../../packages/feature_manager
 
   provider: ^6.1.2
   shared_preferences: ^2.3.5
 
 dev_dependencies:
   build_runner: ^2.4.15
-  feature_manager_generator: ^3.1.1
+  feature_manager_generator: ^4.0.0
+  # feature_manager_generator:
+  #   path: ../../packages/feature_manager_generator
 
 # The following section is specific to Flutter.
 flutter:

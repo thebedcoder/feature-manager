@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:analyzer/dart/constant/value.dart';
-import 'package:analyzer/dart/element/element2.dart';
+import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/dart/element/type.dart';
 import 'package:build/build.dart';
 import 'package:feature_manager/annotations.dart';
@@ -11,12 +11,12 @@ import 'package:source_gen/source_gen.dart';
 class FeatureGenerator extends GeneratorForAnnotation<FeatureManagerInit> {
   @override
   String generateForAnnotatedElement(
-    Element2 element,
+    Element element,
     ConstantReader annotation,
     BuildStep buildStep,
   ) {
-    // Cast to Element2 to use the new API
-    if (element is! ClassElement2) {
+    // Cast to Element to use the API
+    if (element is! ClassElement) {
       throw InvalidGenerationSourceError(
         '`@FeatureManagerInit` can only be used on classes.',
         element: element,
@@ -27,40 +27,40 @@ class FeatureGenerator extends GeneratorForAnnotation<FeatureManagerInit> {
     final buffer = StringBuffer();
     final featureFieldNames = <String>[];
 
-    buffer.writeln('class _\$${classElement.name3} implements ${classElement.name3} {');
+    buffer.writeln('class _\$${classElement.name} implements ${classElement.name} {');
     buffer.writeln();
 
     buffer.writeln('''
-    factory  _\$${classElement.name3}() {
+    factory  _\$${classElement.name}() {
       return _instance;
     }''');
     buffer.writeln();
 
     buffer.writeln(
-      ' static final _\$${classElement.name3} _instance = _\$${classElement.name3}._internal();',
+      ' static final _\$${classElement.name} _instance = _\$${classElement.name}._internal();',
     );
     buffer.writeln();
 
     // Start the constructor with initializer list
-    buffer.writeln('  _\$${classElement.name3}._internal()');
+    buffer.writeln('  _\$${classElement.name}._internal()');
 
     final initializers = <String>[];
     final fieldDeclarations = <String>[];
 
-    for (final field in classElement.fields2) {
+    for (final field in classElement.fields) {
       final featureOptions = _getFeatureOptions(field);
       if (featureOptions == null) {
-        log.warning('Field ${field.name3} does not have a valid FeatureOptions annotation.');
+        log.warning('Field ${field.name} does not have a valid FeatureOptions annotation.');
         continue;
       }
 
       final featureType = _getGenericFeatureType(field);
       if (featureType == null) {
-        log.warning('Field ${field.name3} does not have a valid generic Feature<T> type.');
+        log.warning('Field ${field.name} does not have a valid generic Feature<T> type.');
         continue;
       }
 
-      final fieldName = field.name3;
+      final fieldName = field.name;
       if (fieldName == null) continue;
 
       final initializer = _generateFeatureInitializer(fieldName, featureType, featureOptions);
@@ -85,7 +85,7 @@ class FeatureGenerator extends GeneratorForAnnotation<FeatureManagerInit> {
 
     buffer.writeln('}');
 
-    buffer.writeln('extension ${classElement.name3}Ext on ${classElement.name3} {');
+    buffer.writeln('extension ${classElement.name}Ext on ${classElement.name} {');
     buffer.writeln('  List<Feature> get values => [');
     for (final fieldName in featureFieldNames) {
       buffer.writeln('        $fieldName,');
@@ -95,15 +95,15 @@ class FeatureGenerator extends GeneratorForAnnotation<FeatureManagerInit> {
 
     // Generate the extension
     buffer.writeln('extension FeatureManagerExt on FeatureManager {');
-    for (final field in classElement.fields2) {
+    for (final field in classElement.fields) {
       final featureOptions = _getFeatureOptions(field);
       if (featureOptions == null) {
         continue;
       }
       final featureType = _getGenericFeatureType(field);
-      final fieldName = field.name3;
+      final fieldName = field.name;
       if (fieldName == null) continue;
-      buffer.writeln('  $featureType get $fieldName => _\$${classElement.name3}().$fieldName;');
+      buffer.writeln('  $featureType get $fieldName => _\$${classElement.name}().$fieldName;');
     }
     buffer.writeln('}');
 
@@ -111,9 +111,9 @@ class FeatureGenerator extends GeneratorForAnnotation<FeatureManagerInit> {
     return generatedCode;
   }
 
-  String? _getGenericFeatureType(FieldElement2 field) {
-    final featureInterface = field.type.element3;
-    if (featureInterface is ClassElement2 && featureInterface.name3 == 'Feature') {
+  String? _getGenericFeatureType(FieldElement field) {
+    final featureInterface = field.type.element;
+    if (featureInterface is ClassElement && featureInterface.name == 'Feature') {
       final typeArguments = (field.type as ParameterizedType).typeArguments;
       if (typeArguments.isEmpty) {
         return null;
@@ -135,28 +135,25 @@ class FeatureGenerator extends GeneratorForAnnotation<FeatureManagerInit> {
     return null;
   }
 
-  FeatureOptions? _getFeatureOptions(FieldElement2 field) {
+  FeatureOptions? _getFeatureOptions(FieldElement field) {
     const typeChecker = TypeChecker.typeNamed(FeatureOptions, inPackage: 'feature_manager');
-    for (final metadata in field.metadata2.annotations) {
-      final elementValue = metadata.computeConstantValue();
-      if (elementValue == null || !typeChecker.isExactlyType(elementValue.type!)) {
-        continue;
-      }
-
-      final defaultValueField = elementValue.getField('defaultValue');
-      final defaultValue = _getLiteralValue(defaultValueField);
-
-      return FeatureOptions(
-        key: elementValue.getField('key')?.toStringValue() ?? '',
-        remoteSourceKey: elementValue.getField('remoteSourceKey')?.toStringValue() ?? '',
-        title: elementValue.getField('title')?.toStringValue() ?? '',
-        description: elementValue.getField('description')?.toStringValue() ?? '',
-        defaultValue: defaultValue,
-        type:
-            FeatureType.values[elementValue.getField('type')?.getField('index')?.toIntValue() ?? 0],
-      );
+    final annotation = typeChecker.firstAnnotationOfExact(field);
+    if (annotation == null) {
+      return null;
     }
-    return null;
+
+    final elementValue = annotation;
+    final defaultValueField = elementValue.getField('defaultValue');
+    final defaultValue = _getLiteralValue(defaultValueField);
+
+    return FeatureOptions(
+      key: elementValue.getField('key')?.toStringValue() ?? '',
+      remoteSourceKey: elementValue.getField('remoteSourceKey')?.toStringValue() ?? '',
+      title: elementValue.getField('title')?.toStringValue() ?? '',
+      description: elementValue.getField('description')?.toStringValue() ?? '',
+      defaultValue: defaultValue,
+      type: FeatureType.values[elementValue.getField('type')?.getField('index')?.toIntValue() ?? 0],
+    );
   }
 
   dynamic _getLiteralValue(DartObject? object) {

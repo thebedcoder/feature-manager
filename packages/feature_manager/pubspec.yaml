@@ -3,7 +3,7 @@ description: Feature manager for developer preferences and experiments
 repository: https://github.com/thebedcoder/feature-manager/tree/master/packages/feature_manager
 issue_tracker: https://github.com/thebedcoder/feature-manager/issues
 
-version: 3.1.2
+version: 4.0.0
 
 environment:
   sdk: '>=3.7.0 <4.0.0'
@@ -14,6 +14,6 @@ dependencies:
     sdk: flutter
 
 dev_dependencies:
-  lints: ^5.1.1
+  lints: ^6.0.0
   flutter_test:
     sdk: flutter

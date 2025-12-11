@@ -1,3 +1,11 @@
+## 4.0.0
+
+- **Version Bump**: Major version update to 4.0.0 for compatibility with feature_manager_generator 4.0.0
+- **Compatibility**: Updated to work with feature_manager_generator 4.0.0 which supports analyzer 9.0.0, build 4.0.3, and source_gen 4.1.1
+- **Dependencies**: 
+  - lints: ^6.0.0 (maintained from previous version)
+- **Maintenance**: Version alignment with feature_manager_generator for better ecosystem consistency
+
 ## 3.1.2
 
 - **Version Bump**: Updated to version 3.1.2 for consistency with feature_manager_generator
@@ -25,7 +33,7 @@
 
 ### Breaking Changes 🔥
 
-#### Updated Feature Model:
+#### Updated Feature Model
 
 - `Feature<T>` now relies solely on its generic type for determining feature behavior.
 - Removed FeatureValueType references in favor of type inference.
@@ -51,7 +59,7 @@ final Feature booleanFeature;
 final Feature<bool> booleanFeature;
 ```
 
-#### Compatibility with feature_manager_generator:
+#### Compatibility with feature_manager_generator
 
 - Ensure your code is compatible by migrating away from FeatureValueType.
 
@@ -62,7 +70,7 @@ final Feature<bool> booleanFeature;
 
 ## 3.0.1
 
-- Export for `src/utils/extensions.dart `to make extensions publicly accessible.
+- Export for `src/utils/extensions.dart`to make extensions publicly accessible.
 
 ## 3.0.0
 

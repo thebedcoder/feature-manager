@@ -1,3 +1,13 @@
+## 4.0.0
+
+- **Version Bump**: Major version update to 4.0.0 for compatibility with feature_manager 4.0.0
+- **Dependencies**: Updated feature_manager dependency to ^4.0.0
+- **Compatibility**: Updated to work with feature_manager 4.0.0 which supports the latest analyzer, build, and source_gen versions
+
+## 3.1.3
+
+- Bump `firebase_remote_config` version to >= 6.0.0
+
 ## 3.1.2
 
 - **Version Bump**: Updated to version 3.1.2 for consistency with other packages in the monorepo
@@ -11,7 +21,7 @@
 
 ## 3.0.4
 
-### Refactored Feature Type Handling:
+### Refactored Feature Type Handling
 
 - Removed FeatureValueType and replaced it with generic type inference for Feature<T>.
 - The generator now detects the correct feature type (`BooleanFeature`, `TextFeature`, etc.) based on the generic type (`Feature<bool>`, `Feature<String>,` etc.).
