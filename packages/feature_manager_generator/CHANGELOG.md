@@ -1,3 +1,8 @@
+## 4.1.0
+
+- **Dependencies**: Updated analyzer to support the latest major version
+  - analyzer: ^9.0.0 → ^12.0.0
+
 ## 4.0.0
 
 - **Breaking Change**: Migrated from Element2 API back to Element API for analyzer 9.0.0 compatibility
