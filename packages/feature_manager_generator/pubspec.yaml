@@ -3,13 +3,13 @@ description: Feature manager generator for developer preferences and experiments
 repository: https://github.com/thebedcoder/feature-manager/tree/master/packages/feature_manager_generator
 issue_tracker: https://github.com/thebedcoder/feature-manager/issues
 
-version: 4.0.0
+version: 4.1.0
 
 environment:
   sdk: '>=3.7.0 <4.0.0'
 
 dependencies:  
-  analyzer: ^9.0.0
+  analyzer: ^12.0.0
   build: ^4.0.3
   source_gen: ^4.1.1
   feature_manager: ^4.0.0
