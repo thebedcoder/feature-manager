@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.0
+
+- **Log Reader**: Display logs as continuous, selectable monospaced text on a white background, with horizontal scrolling and optional line wrapping. Copy multiple lines or entries without terminal color codes; exports preserve the original content.
+- **Pagination**: Preserve scroll position and text selection when loading more entries. Add retry support for failed pages and keep the reader visible while loading.
+- **Web Performance**: Use a native browser text area to avoid expensive Flutter text layout when opening and selecting large logs. Restore visible selection highlighting on the web.
+- **Session List**: Simplify the inspector with a white background, compact rows, subtle dividers, and consistent entry counts in the list and reader.
+- **Accurate Counts**: Count stored entries directly, including logger borders and stack-trace lines, and serialize session activity updates to prevent lost increments during bursts of logging.
+- **Session Cleanup**: Automatically remove historical sessions with no stored entries during initialization. Keep the current session and preserve historical sessions when their entry count cannot be read.
+- **Example**: Add a button to generate 1,000 log records for testing larger sessions.
+- **Code Quality**: Restore Flutter lint checks, fix asynchronous count warnings, and add regression coverage for pagination, text selection, counts, and empty-session cleanup.
+
 ## 1.0.3
 
 - **Enhanced Database Interface**: Added `getPageByKeyRange` method for improved pagination support using KeyRange filters

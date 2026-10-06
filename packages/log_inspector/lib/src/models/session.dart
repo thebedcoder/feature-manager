@@ -16,7 +16,7 @@ class LogSession {
   /// When the last log was added to this session
   final DateTime lastActivityAt;
 
-  /// Number of logs in this session
+  /// Number of stored log entries, including logger borders and stack-trace lines.
   final int logCount;
 
   /// Create a LogSession from a Map (for storage/retrieval)

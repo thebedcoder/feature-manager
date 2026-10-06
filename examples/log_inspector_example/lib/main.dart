@@ -31,6 +31,7 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   late Logger _logger;
   int _logCounter = 0;
+  bool _isAddingBatch = false;
 
   @override
   void initState() {
@@ -48,7 +49,7 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  void _addLogRecord() {
+  void _writeLogRecord() {
     _logCounter++;
 
     // Add various types of log records for testing
@@ -82,13 +83,43 @@ class _MyHomePageState extends State<MyHomePage> {
       default:
         _logger.i(messages[randomIndex]);
     }
+  }
 
+  void _addLogRecord() {
+    _writeLogRecord();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Added log record #$_logCounter'),
         duration: const Duration(milliseconds: 1500),
       ),
     );
+  }
+
+  Future<void> _add1000LogRecords() async {
+    if (_isAddingBatch) return;
+    setState(() => _isAddingBatch = true);
+
+    try {
+      await _logger.init;
+      for (var index = 0; index < 1000; index++) {
+        if (!mounted) return;
+        _writeLogRecord();
+        if ((index + 1) % 25 == 0) {
+          await Future<void>.delayed(Duration.zero);
+        }
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Added 1000 log records')));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not add log records: $error')));
+    } finally {
+      if (mounted) setState(() => _isAddingBatch = false);
+    }
   }
 
   @override
@@ -124,11 +155,15 @@ class _MyHomePageState extends State<MyHomePage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ElevatedButton(
-              onPressed: _addLogRecord,
+              onPressed: _isAddingBatch ? null : _addLogRecord,
               child: const Text('Add Record to Log'),
             ),
             ElevatedButton(
-              onPressed: _addHugeLogRecord,
+              onPressed: _isAddingBatch ? null : _add1000LogRecords,
+              child: Text(_isAddingBatch ? 'Adding 1000 records…' : 'Add 1000 Records to Log'),
+            ),
+            ElevatedButton(
+              onPressed: _isAddingBatch ? null : _addHugeLogRecord,
               child: const Text('Add Huge Record to Log'),
             ),
             const Divider(),

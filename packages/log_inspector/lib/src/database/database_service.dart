@@ -258,21 +258,17 @@ class DatabaseService implements DatabaseInterface {
   Future<int> count(String storeName, {KeyRange? keyRange}) async {
     await _ensureInitialized();
 
-    try {
-      return _transaction<int>(
-        storeName,
-        'readonly',
-        (store) {
-          if (keyRange == null) {
-            return store.count();
-          }
-          final index = store.index('sessionId');
-          return index.count(keyRange);
-        },
-      );
-    } catch (e) {
-      return 0;
-    }
+    return await _transaction<int>(
+      storeName,
+      'readonly',
+      (store) {
+        if (keyRange == null) {
+          return store.count();
+        }
+        final index = store.index('sessionId');
+        return index.count(keyRange);
+      },
+    );
   }
 
   /// Ensure database is initialized

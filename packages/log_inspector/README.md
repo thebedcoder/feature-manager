@@ -15,12 +15,15 @@ A comprehensive Flutter package that provides an advanced logging inspection int
 - 📋 **Session navigation**: Browse and manage multiple logging sessions
 - ⚡ **Performance optimized**: Efficient pagination and lazy loading
 
-## What's New in v1.0.0
+## What's New in v1.1.0
 
-- **Session Management**: Automatic session creation with unique identifiers
-- **Advanced UI**: Two dedicated screens - Session Inspector and Detailed Log Viewer
-- **Database Integration**: Uses IndexedDB for web and file system for native platforms
-- **Infinite Scroll**: Paginated log loading for better performance with large datasets
+- **Console-style reader**: Continuous text with multiline selection, horizontal scrolling, and optional line wrapping
+- **Stable pagination**: Load more entries without losing your scroll position or selection
+- **Responsive web reader**: Native browser text selection and scrolling for large transcripts
+- **Minimal session list**: White surfaces, compact rows, and accurate stored-entry counts
+- **Automatic cleanup**: Remove empty historical sessions while keeping the current session
+
+See the [changelog](CHANGELOG.md) for the full release notes.
 
 ## Interface Screenshots
 
@@ -39,7 +42,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  log_inspector: ^1.0.0
+  log_inspector: ^1.1.0
   logger: ^2.5.0 # Required peer dependency
 ```
 
@@ -93,6 +96,29 @@ Navigator.push(
   ),
 );
 ```
+
+## Reading logs
+
+The viewer loads entries in their stored order and keeps your scroll position as more entries arrive.
+The header shows how many entries are loaded out of the session total. The session list and reader both
+count stored entries directly, so older sessions with inaccurate cached totals also display correctly.
+Entries include any borders and stack-trace lines produced by your logger; they do not count calls to
+`logger.i`, `logger.w`, or similar methods. Refresh starts again from the first entry.
+
+Empty historical sessions are deleted automatically when the logger initializes. The current session
+is kept even while it has no entries.
+
+Logs appear as continuous, monospaced text on a white background, with their original spacing and full
+content. Scroll horizontally to read long lines, or turn on **Wrap lines** in the header. Select across
+multiple lines or entries and use the selection menu or keyboard shortcut to
+copy them. Terminal color codes are removed from the displayed and copied text; exports retain the
+original content. Loading another page preserves both your scroll position and text selection.
+On the web, the transcript uses a native browser text area to keep opening and selecting large logs
+responsive without laying out the entire transcript in Flutter.
+
+The bundled [Roboto Mono](https://github.com/google/fonts/tree/main/ofl/robotomono) font keeps console
+alignment consistent across platforms. Its license is included in `assets/fonts/OFL.txt`.
+
 ## Example Application
 
 The package includes a comprehensive example demonstrating all features:

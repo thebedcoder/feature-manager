@@ -52,6 +52,7 @@ class UniversalLoggerOutput extends LogOutput {
   String get currentSessionId => _currentSessionId;
 
   bool _isInitialized = false;
+  Future<void>? _initialization;
 
   /// Generate a unique session ID
   String _generateSessionId() => DateTime.now().toSessionId();
@@ -78,19 +79,48 @@ class UniversalLoggerOutput extends LogOutput {
   }
 
   @override
-  Future<void> init() async {
-    if (!shouldLog) return;
+  Future<void> init() {
+    if (!shouldLog || _isInitialized) return Future<void>.value();
+    return _initialization ??= _initialize();
+  }
 
+  Future<void> _initialize() async {
     try {
       // Initialize the database service
       await _databaseService.init();
-      _isInitialized = true;
 
       // Create session record
       await _createSessionRecord();
+      await _deleteEmptyHistoricalSessions();
+      _isInitialized = true;
     } catch (e) {
       debugPrint('Error initializing logger: $e');
       _isInitialized = false;
+    } finally {
+      _initialization = null;
+    }
+  }
+
+  Future<void> _deleteEmptyHistoricalSessions() async {
+    final List<LogSession> sessions;
+    try {
+      sessions = await _sessionsService.getAllSessions();
+    } catch (e) {
+      debugPrint('Error reading session history for cleanup: $e');
+      return;
+    }
+
+    for (final session in sessions) {
+      if (session.id == _currentSessionId) continue;
+
+      try {
+        final count = await _logsService.getTotalLogsCountForSession(session.id);
+        if (count == 0) {
+          await _sessionsService.deleteSession(session.id);
+        }
+      } catch (e) {
+        debugPrint('Error cleaning up empty session ${session.id}: $e');
+      }
     }
   }
 
@@ -210,12 +240,7 @@ class UniversalLoggerOutput extends LogOutput {
 
     final targetSessionId = sessionId ?? _currentSessionId;
 
-    try {
-      return _logsService.getTotalLogsCountForSession(targetSessionId);
-    } catch (e) {
-      debugPrint('Error getting logs count from database: $e');
-      return 0;
-    }
+    return await _logsService.getTotalLogsCountForSession(targetSessionId);
   }
 
   /// Get the total number of pages for pagination
@@ -340,8 +365,18 @@ class UniversalLoggerOutput extends LogOutput {
     return await getLogFilesCount() > 0;
   }
 
-  /// Get all sessions from the database
+  /// Get all sessions with counts of their stored log entries.
   Future<List<LogSession>> getAllSessions() async {
+    final sessions = await _readSessionRecords();
+    return await Future.wait(sessions.map(_withStoredEntryCount));
+  }
+
+  Future<LogSession> _withStoredEntryCount(LogSession session) async {
+    final count = await _logsService.getTotalLogsCountForSession(session.id);
+    return session.copyWith(logCount: count);
+  }
+
+  Future<List<LogSession>> _readSessionRecords() async {
     if (!_isInitialized) {
       await init();
     }
@@ -358,9 +393,9 @@ class UniversalLoggerOutput extends LogOutput {
     }
   }
 
-  /// Get paginated sessions
+  /// Get paginated sessions with counts of their stored log entries.
   Future<PaginatedSessions> getSessionsPaginated(int page, {int pageSize = 20}) async {
-    final allSessions = await getAllSessions();
+    final allSessions = await _readSessionRecords();
     final totalSessions = allSessions.length;
     final totalPages = (totalSessions / pageSize).ceil();
 
@@ -372,7 +407,7 @@ class UniversalLoggerOutput extends LogOutput {
         : <LogSession>[];
 
     return PaginatedSessions(
-      sessions: sessions,
+      sessions: await Future.wait(sessions.map(_withStoredEntryCount)),
       currentPage: page,
       pageSize: pageSize,
       totalSessions: totalSessions,
@@ -382,7 +417,7 @@ class UniversalLoggerOutput extends LogOutput {
     );
   }
 
-  /// Get session by ID
+  /// Get a session by ID with its stored log entry count.
   Future<LogSession?> getSession(String sessionId) async {
     if (!_isInitialized) {
       await init();
@@ -393,7 +428,8 @@ class UniversalLoggerOutput extends LogOutput {
     }
 
     try {
-      return await _sessionsService.getSession(sessionId);
+      final session = await _sessionsService.getSession(sessionId);
+      return session == null ? null : await _withStoredEntryCount(session);
     } catch (e) {
       debugPrint('Error getting session from database: $e');
       return null;

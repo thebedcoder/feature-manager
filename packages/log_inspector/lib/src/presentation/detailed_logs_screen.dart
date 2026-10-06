@@ -1,392 +1,364 @@
 import 'package:flutter/material.dart';
+import 'package:log_inspector/src/presentation/widgets/log_text_view.dart';
+import 'package:log_inspector/src/presentation/widgets/log_viewer_header.dart';
 import 'package:log_inspector/src/services/logger_service/logger_service.dart';
 import 'package:log_inspector/src/services/logger_service/logger_service_impl.dart';
 
 class DetailedLogsScreen extends StatefulWidget {
-  const DetailedLogsScreen({super.key, this.sessionId});
+  const DetailedLogsScreen({super.key, this.sessionId, this.loggerService});
 
-  /// Optional session ID to view logs for a specific session
-  /// If null, defaults to the current session
+  /// Optional session ID to view logs for a specific session.
+  /// If null, defaults to the current session.
   final String? sessionId;
+
+  /// Overrides the default logger service, for example in tests.
+  final LoggerService? loggerService;
 
   @override
   State<DetailedLogsScreen> createState() => _DetailedLogsScreenState();
 }
 
 class _DetailedLogsScreenState extends State<DetailedLogsScreen> {
-  bool _isLoading = false;
+  static const _pageSize = 100;
+  static final _ansiEscape = RegExp(r'\x1B\[[0-?]*[ -/]*[@-~]');
+
   late LoggerService _loggerService;
-
+  final _scrollController = ScrollController();
+  final _textController = TextEditingController();
+  final List<String> _logs = [];
   int _currentPage = 0;
-  int _totalPages = 0;
-
-  List<String> _allLoadedLogs = [];
+  int _totalLogs = 0;
+  int _loadRequestId = 0;
+  int _transcriptRevision = 0;
+  bool _hasNextPage = false;
+  bool _isLoading = true;
   bool _isLoadingMore = false;
+  bool _loadFailed = false;
+  bool _loadMoreFailed = false;
+  bool _isDownloading = false;
+  bool _isClearing = false;
+  bool _wrapLines = false;
 
-  // Scroll controller to maintain position
-  final ScrollController _scrollController = ScrollController();
-
-  /// Whether this screen is viewing a specific session or the current session
-  bool get _isViewingSpecificSession => widget.sessionId != null;
-
-  /// The session ID being viewed (or current session if none specified)
   String get _targetSessionId => widget.sessionId ?? _loggerService.currentSessionId;
-
-  String _getSessionDisplayName(String sessionId) {
-    try {
-      final parts = sessionId.split('_');
-      if (parts.isNotEmpty) {
-        final lastPart = parts.last;
-        if (lastPart.length > 8) {
-          return '${lastPart.substring(0, 8)}...';
-        } else {
-          return lastPart;
-        }
-      }
-      return sessionId;
-    } catch (e) {
-      // Fallback to first 8 characters of the full ID if parsing fails
-      return sessionId.length > 8 ? '${sessionId.substring(0, 8)}...' : sessionId;
-    }
-  }
 
   @override
   void initState() {
     super.initState();
-    _loggerService = LoggerServiceImpl();
-    _loadLogsInfo();
+    _loggerService = widget.loggerService ?? LoggerServiceImpl();
+    _loadLogs();
+  }
+
+  @override
+  void didUpdateWidget(covariant DetailedLogsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.sessionId != widget.sessionId ||
+        oldWidget.loggerService != widget.loggerService) {
+      _loggerService = widget.loggerService ?? LoggerServiceImpl();
+      _logs.clear();
+      _textController.clear();
+      _totalLogs = 0;
+      _hasNextPage = false;
+      _loadLogs();
+    }
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
+    _textController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadLogsInfo() async {
+  Future<void> _loadLogs({bool append = false}) async {
+    if (append && (_isLoading || _isLoadingMore || _isClearing || !_hasNextPage)) return;
+
+    final requestId = ++_loadRequestId;
+    final page = append ? _currentPage + 1 : 0;
     setState(() {
-      _isLoading = true;
+      if (append) {
+        _isLoadingMore = true;
+        _loadMoreFailed = false;
+      } else {
+        _isLoading = true;
+        _isLoadingMore = false;
+        _loadFailed = false;
+        _loadMoreFailed = false;
+      }
     });
 
     try {
-      await _loadPaginatedData();
+      final result =
+          widget.sessionId == null
+              ? await _loggerService.readLogsPaginated(page, pageSize: _pageSize)
+              : await _loggerService.readLogsPaginatedForSession(
+                _targetSessionId,
+                page,
+                pageSize: _pageSize,
+              );
+      if (!mounted || requestId != _loadRequestId) return;
 
-      setState(() {
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
+      if (result.logs.isEmpty && result.totalLogs > (append ? _logs.length : 0)) {
+        throw StateError('The requested page of logs is unavailable.');
+      }
 
-  Future<void> _loadPaginatedData({bool append = false}) async {
-    try {
-      // Get paginated logs using the logger service for the target session
-      final paginatedResult = _isViewingSpecificSession
-          ? await _loggerService.readLogsPaginatedForSession(_targetSessionId, _currentPage)
-          : await _loggerService.readLogsPaginated(_currentPage);
-
-      setState(() {
-        if (append) {
-          // Append new logs to existing list for infinite scroll
-          _allLoadedLogs.addAll(paginatedResult.logs);
-        } else {
-          // Reset list for initial load or manual page navigation
-          _allLoadedLogs = List.from(paginatedResult.logs);
-        }
-        _totalPages = paginatedResult.totalPages;
-      });
-    } catch (e) {
+      if (!append && _scrollController.hasClients) _scrollController.jumpTo(0);
+      final pageText = result.logs.map((log) => log.replaceAll(_ansiEscape, '')).join('\n');
+      final text =
+          append && _logs.isNotEmpty
+              ? '${_textController.text}${result.logs.isEmpty ? '' : '\n$pageText'}'
+              : pageText;
+      _textController.value = TextEditingValue(
+        text: text,
+        selection: append ? _textController.selection : const TextSelection.collapsed(offset: 0),
+      );
       setState(() {
         if (!append) {
-          _allLoadedLogs = [];
+          _logs.clear();
+          _transcriptRevision++;
         }
+        _logs.addAll(result.logs);
+        _currentPage = page;
+        _totalLogs = result.totalLogs;
+        _hasNextPage = result.hasNextPage && result.logs.isNotEmpty;
+        _isLoading = false;
+        _isLoadingMore = false;
       });
+      _checkViewportAfterLayout();
+    } catch (error) {
+      if (!mounted || requestId != _loadRequestId) return;
+      setState(() {
+        _isLoading = false;
+        _isLoadingMore = false;
+        _loadFailed = !append;
+        _loadMoreFailed = append;
+      });
+      if (!append && _logs.isNotEmpty) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Could not refresh logs. Try again.')));
+      }
     }
   }
 
-  Future<void> _loadNextPageInfinite() async {
-    if (_currentPage >= _totalPages - 1 || _isLoadingMore) return;
+  void _loadMoreIfNeeded() {
+    if (!_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    _loadMoreForViewport(position.extentAfter, position.viewportDimension);
+  }
 
-    setState(() {
-      _isLoadingMore = true;
-      _currentPage++;
-    });
+  void _loadMoreForViewport(double extentAfter, double viewportDimension) {
+    if (_loadFailed || _loadMoreFailed) return;
+    final threshold = viewportDimension.clamp(400.0, 1200.0);
+    if (extentAfter < threshold) _loadLogs(append: true);
+  }
 
-    await _loadPaginatedData(append: true);
-
-    setState(() {
-      _isLoadingMore = false;
+  void _checkViewportAfterLayout() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadMoreIfNeeded();
     });
   }
 
   Future<void> _downloadLogs() async {
-    if (_isLoading) {
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-    });
-
+    setState(() => _isDownloading = true);
     try {
-      if (_isViewingSpecificSession) {
-        await _loggerService.downloadLogsForSession(_targetSessionId);
-      } else {
+      if (widget.sessionId == null) {
         await _loggerService.downloadLogs();
+      } else {
+        await _loggerService.downloadLogsForSession(_targetSessionId);
       }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Logs download triggered.')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Logs download triggered.')));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not download logs: $error')));
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isDownloading = false);
     }
   }
 
   Future<void> _clearLogs() async {
-    final sessionText = _isViewingSpecificSession ? 'this session\'s logs' : 'all log files';
-
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Clear Logs'),
-        content: Text(
-          'Are you sure you want to clear $sessionText? This action cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Clear logs?'),
+            content: const Text(
+              'This will delete all logs in this session. This cannot be undone.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Clear'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Clear'),
-          ),
-        ],
-      ),
     );
-
-    if (confirmed != true) {
-      return;
-    }
+    if (!mounted || confirmed != true) return;
 
     setState(() {
-      _isLoading = true;
+      _isClearing = true;
+      _isLoadingMore = false;
+      _loadRequestId++;
     });
-
     try {
-      if (_isViewingSpecificSession) {
-        await _loggerService.clearLogsForSession(_targetSessionId);
-      } else {
+      if (widget.sessionId == null) {
         await _loggerService.cleanLogs();
+      } else {
+        await _loggerService.clearLogsForSession(_targetSessionId);
       }
-
-      await _loadLogsInfo(); // Reload to update UI
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Logs cleared successfully')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error clearing logs: ${e.toString()}')),
-        );
-      }
+      if (!mounted) return;
+      await _loadLogs();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not clear logs: $error')));
     } finally {
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() => _isClearing = false);
+        _checkViewportAfterLayout();
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_isViewingSpecificSession
-            ? 'Session Logs (${_getSessionDisplayName(_targetSessionId)})'
-            : 'Logs Inspector'),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.download),
-            onPressed: _isLoading ? null : _downloadLogs,
-          ),
-          IconButton(
-            icon: Icon(Icons.delete),
-            onPressed: _isLoading ? null : _clearLogs,
-          ),
-          IconButton(
-            icon: Icon(Icons.refresh),
-            onPressed: _isLoading ? null : _loadLogsInfo,
-          ),
-          const SizedBox(width: 8),
-        ],
+    final parentTheme = Theme.of(context);
+    final colors = ColorScheme.fromSeed(
+      seedColor: parentTheme.colorScheme.primary,
+      surface: Colors.white,
+    );
+    final theme = ThemeData.from(
+      colorScheme: colors,
+      textTheme: parentTheme.textTheme.apply(
+        bodyColor: colors.onSurface,
+        displayColor: colors.onSurface,
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _allLoadedLogs.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.description_outlined,
-                        size: 48,
-                        color: Colors.grey.shade400,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'No logs found',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'No logs on this page',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade500,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: FutureBuilder<List<String>>(
-                        future: Future.value(_allLoadedLogs),
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState == ConnectionState.waiting) {
-                            return const Center(child: CircularProgressIndicator());
-                          }
+      useMaterial3: parentTheme.useMaterial3,
+    );
+    final busy = _isLoading || _isClearing;
 
-                          if (snapshot.hasError) {
-                            return Center(
-                              child: Text(
-                                'Error loading logs: ${snapshot.error}',
-                                style: const TextStyle(color: Colors.red),
-                              ),
-                            );
-                          }
-
-                          final logs = snapshot.data ?? [];
-                          if (logs.isEmpty) {
-                            return const Center(
-                              child: Text(
-                                'No logs available',
-                                style: TextStyle(color: Colors.grey),
-                              ),
-                            );
-                          }
-
-                          return NotificationListener<ScrollNotification>(
-                            onNotification: (ScrollNotification scrollInfo) {
-                              // Auto-load next page when close to bottom (within 200 pixels)
-                              if (scrollInfo.metrics.pixels >=
-                                      scrollInfo.metrics.maxScrollExtent - 200 &&
-                                  _currentPage < _totalPages - 1 &&
-                                  !_isLoading &&
-                                  !_isLoadingMore) {
-                                _loadNextPageInfinite();
-                              }
-                              return false;
-                            },
-                            child: ListView.separated(
-                              controller: _scrollController,
-                              itemCount:
-                                  _allLoadedLogs.length + (_currentPage < _totalPages - 1 ? 1 : 0),
-                              separatorBuilder: (context, index) => const Divider(
-                                height: 1,
-                                color: Colors.grey,
-                                thickness: 0.1,
-                              ),
-                              itemBuilder: (context, index) {
-                                // Show loading indicator for next page
-                                if (index >= _allLoadedLogs.length) {
-                                  return Container(
-                                    padding: const EdgeInsets.all(16),
-                                    child: Center(
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          SizedBox(
-                                            width: 16,
-                                            height: 16,
-                                            child: CircularProgressIndicator(strokeWidth: 2),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(_isLoadingMore
-                                              ? 'Loading more logs...'
-                                              : 'Loading next page...'),
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                }
-
-                                final logEntry = _allLoadedLogs[index];
-                                return Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 8,
+    return Theme(
+      data: theme,
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: colors.surface,
+          surfaceTintColor: colors.surface,
+          title: Text(widget.sessionId == null ? 'Current session logs' : 'Session logs'),
+          actions: [
+            IconButton(
+              tooltip: 'Download logs',
+              icon:
+                  _isDownloading
+                      ? const SizedBox.square(
+                        dimension: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                      : const Icon(Icons.download_outlined),
+              onPressed: busy || _isDownloading || _logs.isEmpty ? null : _downloadLogs,
+            ),
+            IconButton(
+              tooltip: 'Clear logs',
+              icon: const Icon(Icons.delete_outline),
+              onPressed: busy || _isDownloading || _logs.isEmpty ? null : _clearLogs,
+            ),
+            IconButton(
+              tooltip: 'Refresh logs',
+              icon: const Icon(Icons.refresh),
+              onPressed: busy ? null : _loadLogs,
+            ),
+          ],
+        ),
+        body: SafeArea(
+          top: false,
+          child: Column(
+            children: [
+              LogViewerHeader(
+                sessionId: _targetSessionId,
+                loadedCount: _logs.length,
+                totalCount: _totalLogs,
+                wrapLines: _wrapLines,
+                onToggleWrap: () => setState(() => _wrapLines = !_wrapLines),
+              ),
+              SizedBox(height: 2, child: busy ? const LinearProgressIndicator() : null),
+              Expanded(
+                child:
+                    _logs.isEmpty
+                        ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  _loadFailed ? Icons.error_outline : Icons.subject,
+                                  size: 40,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  _isLoading
+                                      ? 'Loading logs…'
+                                      : _loadFailed
+                                      ? 'Could not load logs'
+                                      : 'No logs in this session',
+                                  style: theme.textTheme.titleMedium,
+                                ),
+                                if (_loadFailed)
+                                  TextButton.icon(
+                                    onPressed: _loadLogs,
+                                    icon: const Icon(Icons.refresh),
+                                    label: const Text('Retry'),
                                   ),
-                                  child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Container(
-                                        width: 40,
-                                        alignment: Alignment.centerRight,
-                                        child: Text(
-                                          '${index + 1}',
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            color: Colors.grey.shade500,
-                                            fontFamily: 'monospace',
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Text(
-                                          logEntry,
-                                          style: const TextStyle(
-                                            fontFamily: 'monospace',
-                                            fontSize: 12,
-                                            height: 1.4,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
+                              ],
                             ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
+                          ),
+                        )
+                        : NotificationListener<ScrollMetricsNotification>(
+                          onNotification: (_) {
+                            _checkViewportAfterLayout();
+                            return false;
+                          },
+                          child: LogTextView(
+                            key: ValueKey(_transcriptRevision),
+                            textController: _textController,
+                            scrollController: _scrollController,
+                            wrapLines: _wrapLines,
+                            onScrollMetrics: _loadMoreForViewport,
+                          ),
+                        ),
+              ),
+              if (_hasNextPage)
+                SizedBox(
+                  height: 48,
+                  child: Center(
+                    child:
+                        _isLoadingMore
+                            ? const SizedBox.square(
+                              dimension: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                            : TextButton.icon(
+                              onPressed: busy ? null : () => _loadLogs(append: true),
+                              icon: Icon(_loadMoreFailed ? Icons.refresh : Icons.expand_more),
+                              label: Text(
+                                _loadMoreFailed ? 'Could not load more. Retry' : 'Load more',
+                              ),
+                            ),
+                  ),
                 ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
