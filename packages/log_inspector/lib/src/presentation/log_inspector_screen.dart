@@ -3,10 +3,13 @@ import 'package:log_inspector/src/services/logger_service/logger_service.dart';
 import 'package:log_inspector/src/services/logger_service/logger_service_impl.dart';
 import 'package:log_inspector/src/models/session.dart';
 import 'package:log_inspector/src/presentation/detailed_logs_screen.dart';
+import 'package:log_inspector/src/presentation/widgets/log_session_tile.dart';
 import 'package:log_inspector/src/utils/extensions/date_time_extension.dart';
 
 class LogInspectorScreen extends StatefulWidget {
-  const LogInspectorScreen({super.key});
+  const LogInspectorScreen({super.key, this.loggerService});
+
+  final LoggerService? loggerService;
 
   @override
   State<LogInspectorScreen> createState() => _LogInspectorScreenState();
@@ -27,7 +30,7 @@ class _LogInspectorScreenState extends State<LogInspectorScreen> {
   @override
   void initState() {
     super.initState();
-    _loggerService = LoggerServiceImpl();
+    _loggerService = widget.loggerService ?? LoggerServiceImpl();
     _loadSessionsInfo();
   }
 
@@ -94,28 +97,29 @@ class _LogInspectorScreenState extends State<LogInspectorScreen> {
     });
   }
 
-  Future<void> _deleteSession(LogSession session) async {
+  Future<void> _deleteSession(LogSession session, BuildContext dialogContext) async {
     final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Session'),
-        content: Text(
-          'Are you sure you want to delete this session and all its logs?\n\n'
-          'Session: ${session.id}\n'
-          'Created: ${session.createdAt.formatDateTime()}\n'
-          'Logs: ${session.logCount}',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+      context: dialogContext,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Delete Session'),
+            content: Text(
+              'Are you sure you want to delete this session and all its logs?\n\n'
+              'Session: ${session.id}\n'
+              'Created: ${session.createdAt.formatDateTime()}\n'
+              'Entries: ${session.logCount}',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Delete'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
     );
 
     if (confirmed != true) {
@@ -131,15 +135,15 @@ class _LogInspectorScreenState extends State<LogInspectorScreen> {
       await _loadSessionsInfo(); // Reload to update UI
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Session deleted successfully')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Session deleted successfully')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error deleting session: ${e.toString()}')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error deleting session: ${e.toString()}')));
       }
     } finally {
       if (mounted) {
@@ -156,15 +160,15 @@ class _LogInspectorScreenState extends State<LogInspectorScreen> {
     try {
       await _loggerService.downloadLogsForSession(session.id);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Session logs download triggered.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Session logs download triggered.')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
       }
     } finally {
       if (mounted) {
@@ -176,235 +180,134 @@ class _LogInspectorScreenState extends State<LogInspectorScreen> {
   void _viewSessionLogs(LogSession session) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => DetailedLogsScreen(sessionId: session.id),
+        builder:
+            (context) => DetailedLogsScreen(sessionId: session.id, loggerService: _loggerService),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Log Inspector'),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.refresh),
-            onPressed: _isLoading ? null : _loadSessionsInfo,
-            tooltip: 'Refresh',
-          ),
-          const SizedBox(width: 8),
-        ],
+    final parentTheme = Theme.of(context);
+    final colors = ColorScheme.fromSeed(
+      seedColor: parentTheme.colorScheme.primary,
+      surface: Colors.white,
+    );
+    final theme = ThemeData.from(
+      colorScheme: colors,
+      textTheme: parentTheme.textTheme.apply(
+        bodyColor: colors.onSurface,
+        displayColor: colors.onSurface,
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _allLoadedSessions.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.folder_outlined,
-                        size: 48,
-                        color: Colors.grey.shade400,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'No sessions found',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : NotificationListener<ScrollNotification>(
-                  onNotification: (ScrollNotification scrollInfo) {
-                    // Auto-load next page when close to bottom (within 200 pixels)
-                    if (scrollInfo.metrics.pixels >= scrollInfo.metrics.maxScrollExtent - 200 &&
-                        _currentPage < _totalPages - 1 &&
-                        !_isLoading &&
-                        !_isLoadingMore) {
-                      _loadNextPageInfinite();
-                    }
-                    return false;
-                  },
-                  child: ListView.builder(
-                    controller: _scrollController,
-                    itemCount: _allLoadedSessions.length + (_currentPage < _totalPages - 1 ? 1 : 0),
-                    itemBuilder: (context, index) {
-                      if (index >= _allLoadedSessions.length) {
-                        return Container(
-                          padding: const EdgeInsets.all(16),
-                          child: Center(
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(_isLoadingMore
-                                    ? 'Loading more sessions...'
-                                    : 'Loading next page...'),
-                              ],
-                            ),
-                          ),
-                        );
-                      }
+      useMaterial3: parentTheme.useMaterial3,
+    );
 
-                      final session = _allLoadedSessions[index];
-                      final isCurrentSession = session.id == _loggerService.currentSessionId;
-
-                      return Card(
-                        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: ListTile(
-                            leading: Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: isCurrentSession ? Colors.green : Colors.blue,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(
-                                isCurrentSession ? Icons.play_circle : Icons.folder,
-                                color: Colors.white,
-                                size: 24,
-                              ),
-                            ),
-                            title: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    session.id,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                    ),
-                                    overflow: TextOverflow.visible,
-                                  ),
-                                ),
-                                if (isCurrentSession)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.green,
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: const Text(
-                                      'ACTIVE',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const SizedBox(height: 4),
-                                Text(
-                                  '${session.logCount} logs',
-                                  style: TextStyle(
-                                    color: Colors.grey.shade600,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Row(
-                                  children: [
-                                    Icon(Icons.access_time, size: 12, color: Colors.grey.shade500),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      'Created: ${session.createdAt.formatDateTime()}',
-                                      style: TextStyle(
-                                        color: Colors.grey.shade500,
-                                        fontSize: 10,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 2),
-                                Row(
-                                  children: [
-                                    Icon(Icons.update, size: 12, color: Colors.grey.shade500),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      'Last: ${session.lastActivityAt.formatDateTime()}',
-                                      style: TextStyle(
-                                        color: Colors.grey.shade500,
-                                        fontSize: 10,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                            trailing: PopupMenuButton<String>(
-                              onSelected: (value) {
-                                switch (value) {
-                                  case 'view':
-                                    _viewSessionLogs(session);
-                                    break;
-                                  case 'download':
-                                    _downloadSessionLogs(session);
-                                    break;
-                                  case 'delete':
-                                    if (!isCurrentSession) {
-                                      _deleteSession(session);
-                                    }
-                                    break;
-                                }
-                              },
-                              itemBuilder: (context) => [
-                                const PopupMenuItem(
-                                  value: 'view',
-                                  child: Row(
-                                    children: [
-                                      Icon(Icons.visibility, size: 16),
-                                      SizedBox(width: 8),
-                                      Text('View Logs'),
-                                    ],
-                                  ),
-                                ),
-                                const PopupMenuItem(
-                                  value: 'download',
-                                  child: Row(
-                                    children: [
-                                      Icon(Icons.download, size: 16),
-                                      SizedBox(width: 8),
-                                      Text('Download'),
-                                    ],
-                                  ),
-                                ),
-                                if (!isCurrentSession)
-                                  const PopupMenuItem(
-                                    value: 'delete',
-                                    child: Row(
-                                      children: [
-                                        Icon(Icons.delete, size: 16, color: Colors.red),
-                                        SizedBox(width: 8),
-                                        Text('Delete', style: TextStyle(color: Colors.red)),
-                                      ],
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            onTap: () => _viewSessionLogs(session),
-                          ),
-                        ),
-                      );
-                    },
+    return Theme(
+      data: theme,
+      child: Builder(
+        builder:
+            (context) => Scaffold(
+              backgroundColor: colors.surface,
+              appBar: AppBar(
+                backgroundColor: colors.surface,
+                surfaceTintColor: colors.surface,
+                elevation: 0,
+                scrolledUnderElevation: 0,
+                title: const Text('Log Inspector'),
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.refresh),
+                    onPressed: _isLoading ? null : _loadSessionsInfo,
+                    tooltip: 'Refresh',
                   ),
+                  const SizedBox(width: 8),
+                ],
+                bottom: PreferredSize(
+                  preferredSize: const Size.fromHeight(1),
+                  child: Divider(height: 1, color: colors.outlineVariant.withValues(alpha: 0.5)),
                 ),
+              ),
+              body: SafeArea(
+                top: false,
+                child:
+                    _isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : _allLoadedSessions.isEmpty
+                        ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text('No sessions yet', style: theme.textTheme.titleMedium),
+                              const SizedBox(height: 8),
+                              Text(
+                                'New logging sessions will appear here.',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: colors.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                        : _buildSessionList(context),
+              ),
+            ),
+      ),
+    );
+  }
+
+  Widget _buildSessionList(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return NotificationListener<ScrollNotification>(
+      onNotification: (scrollInfo) {
+        if (scrollInfo.metrics.pixels >= scrollInfo.metrics.maxScrollExtent - 200 &&
+            _currentPage < _totalPages - 1 &&
+            !_isLoading &&
+            !_isLoadingMore) {
+          _loadNextPageInfinite();
+        }
+        return false;
+      },
+      child: ListView.separated(
+        controller: _scrollController,
+        padding: const EdgeInsets.only(bottom: 24),
+        itemCount: _allLoadedSessions.length + (_currentPage < _totalPages - 1 ? 1 : 0),
+        separatorBuilder:
+            (context, index) => Divider(
+              height: 1,
+              indent: 20,
+              endIndent: 20,
+              color: colors.outlineVariant.withValues(alpha: 0.5),
+            ),
+        itemBuilder: (context, index) {
+          if (index >= _allLoadedSessions.length) {
+            return Padding(
+              padding: const EdgeInsets.all(16),
+              child: Center(
+                child:
+                    _isLoadingMore
+                        ? const SizedBox.square(
+                          dimension: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                        : TextButton(
+                          onPressed: _loadNextPageInfinite,
+                          child: const Text('Load more'),
+                        ),
+              ),
+            );
+          }
+
+          final session = _allLoadedSessions[index];
+          final isCurrentSession = session.id == _loggerService.currentSessionId;
+          return LogSessionTile(
+            session: session,
+            isCurrentSession: isCurrentSession,
+            onView: () => _viewSessionLogs(session),
+            onDownload: () => _downloadSessionLogs(session),
+            onDelete: isCurrentSession ? null : () => _deleteSession(session, context),
+          );
+        },
+      ),
     );
   }
 }

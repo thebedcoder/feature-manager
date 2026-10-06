@@ -124,6 +124,42 @@ void main() {
       expect(await sessionsService.getSession('test-session'), isNull);
     });
 
+    test('keeps every increment when a batch updates the same session concurrently', () async {
+      await sessionsService.createSession(LogSession(
+        id: 'batch-session',
+        createdAt: DateTime.now(),
+        lastActivityAt: DateTime.now(),
+        logCount: 0,
+      ));
+
+      await Future.wait(List.generate(
+        1000,
+        (_) => sessionsService.updateSessionActivity('batch-session', 6),
+      ));
+
+      expect((await sessionsService.getSession('batch-session'))!.logCount, 6000);
+    });
+
+    test('a failed activity update does not block later updates', () async {
+      final database = _FailingUpdateDatabase();
+      final service = SessionsService.createForTesting(database);
+      await service.createSession(LogSession(
+        id: 'retry-session',
+        createdAt: DateTime.now(),
+        lastActivityAt: DateTime.now(),
+        logCount: 0,
+      ));
+
+      final failure = expectLater(
+        service.updateSessionActivity('retry-session', 6),
+        throwsStateError,
+      );
+      final nextUpdate = service.updateSessionActivity('retry-session', 6);
+      await Future.wait([failure, nextUpdate]);
+
+      expect((await service.getSession('retry-session'))!.logCount, 6);
+    });
+
     test('should clear all sessions', () async {
       final session1 = LogSession(
         id: 'session-1',
@@ -210,4 +246,17 @@ void main() {
       expect(allSessions.where((s) => s.id == 'invalid-session'), isEmpty);
     });
   });
+}
+
+class _FailingUpdateDatabase extends MockDatabaseService {
+  bool _failNextUpdate = true;
+
+  @override
+  Future<void> update(String storeName, String key, Map<String, dynamic> data) async {
+    if (_failNextUpdate) {
+      _failNextUpdate = false;
+      throw StateError('Temporary update failure');
+    }
+    await super.update(storeName, key, data);
+  }
 }

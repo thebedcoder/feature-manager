@@ -21,6 +21,7 @@ class SessionsService {
   }
 
   final DatabaseInterface _database;
+  final _activityUpdates = <String, Future<void>>{};
 
   /// Create a new session record
   Future<void> createSession(LogSession session) async {
@@ -65,6 +66,20 @@ class SessionsService {
 
   /// Update session activity and log count
   Future<void> updateSessionActivity(
+      String sessionId, int additionalLogCount) {
+    final previous = _activityUpdates[sessionId] ?? Future<void>.value();
+    final update = previous.catchError((Object _) {}).then(
+        (_) => _updateSessionActivity(sessionId, additionalLogCount));
+    _activityUpdates[sessionId] = update;
+
+    return update.whenComplete(() {
+      if (identical(_activityUpdates[sessionId], update)) {
+        _activityUpdates.remove(sessionId);
+      }
+    });
+  }
+
+  Future<void> _updateSessionActivity(
       String sessionId, int additionalLogCount) async {
     final existingRecord =
         await _database.read(DatabaseService.sessionsStoreName, sessionId);

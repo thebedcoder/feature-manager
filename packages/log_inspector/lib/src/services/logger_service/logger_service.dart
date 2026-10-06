@@ -6,12 +6,12 @@ abstract class LoggerService {
   Future<void> downloadLogs();
 
   /// Reads paginated logs with metadata.
-  Future<PaginatedLogs> readLogsPaginated(int page, {int pageSize = 4});
+  Future<PaginatedLogs> readLogsPaginated(int page, {int pageSize = 100});
 
   /// Cleans up old logs.
   Future<void> cleanLogs();
 
-  /// Gets paginated sessions.
+  /// Gets paginated sessions with counts of their stored log entries.
   Future<PaginatedSessions> getSessionsPaginated(int page, {int pageSize = 20});
 
   /// Deletes a specific session and its logs.
