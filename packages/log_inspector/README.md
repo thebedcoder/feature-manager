@@ -42,7 +42,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  log_inspector: ^1.1.0
+  log_inspector: ^1.1.1
   logger: ^2.5.0 # Required peer dependency
 ```
 
