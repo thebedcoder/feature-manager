@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.1
+
+- **Dependencies**: Allow `share_plus` 12.x and 13.x (constraint widened from `^11.0.0` to `>=11.0.0 <14.0.0`). No API changes were required, and projects on older Flutter versions can keep resolving `share_plus` 11.
+- **Upgrade note**: `share_plus` 12+ requires Android Gradle Plugin 8.12.1+, Gradle 8.13+ and Kotlin 2.2.0+ in the host app; `share_plus` 13 also requires Dart 3.10+, Flutter 3.38.1+, iOS 13+ and macOS 10.15+.
+
 ## 1.1.0
 
 - **Log Reader**: Display logs as continuous, selectable monospaced text on a white background, with horizontal scrolling and optional line wrapping. Copy multiple lines or entries without terminal color codes; exports preserve the original content.
